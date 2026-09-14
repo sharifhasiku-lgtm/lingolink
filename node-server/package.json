@@ -1,0 +1,7 @@
+﻿{
+  "name": "lingolink-frontend",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "npx http-server -p 3000"
+  }
+}

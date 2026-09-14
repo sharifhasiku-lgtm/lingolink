@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LingoLink Admin Dashboard</title>
+    <link rel="icon" href="data:,">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+        }
+        
+        /* Login */
+        .login-container {
+            display: flex; justify-content: center; align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        }
+        .login-card {
+            background: white; padding: 40px; border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            width: 100%; max-width: 400px;
+        }
+        .login-card h1 { color: #333; margin-bottom: 10px; text-align: center; }
+        .login-card p { color: #666; margin-bottom: 30px; text-align: center; font-size: 14px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 5px; color: #333; font-weight: 500; font-size: 14px; }
+        input {
+            width: 100%; padding: 12px 15px; border: 2px solid #e0e0e0;
+            border-radius: 8px; font-size: 16px;
+        }
+        input:focus { outline: none; border-color: #667eea; }
+        .btn {
+            background: #667eea; color: white; padding: 15px; border: none;
+            border-radius: 8px; cursor: pointer; font-size: 16px; width: 100%;
+            margin-top: 10px;
+        }
+        .btn:hover { background: #764ba2; }
+        .error-message {
+            color: #ff4444; font-size: 14px; margin-top: 10px;
+            display: none; text-align: center;
+        }
+        .error-message.show { display: block; }
+        
+        /* Dashboard */
+        .dashboard { display: none; }
+        .dashboard.show { display: block; }
+        
+        .sidebar {
+            position: fixed; left: 0; top: 0; width: 250px; height: 100vh;
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+            padding: 30px 0; color: white;
+        }
+        .sidebar h2 {
+            padding: 0 25px; margin-bottom: 30px; font-size: 20px;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .sidebar-item {
+            padding: 15px 25px; cursor: pointer; transition: all 0.3s;
+            display: flex; align-items: center; gap: 12px; font-size: 15px;
+            border-left: 3px solid transparent;
+        }
+        .sidebar-item:hover { background: rgba(255,255,255,0.05); }
+        .sidebar-item.active {
+            background: rgba(102,126,234,0.2);
+            border-left-color: #667eea;
+        }
+        
+        .main-content {
+            margin-left: 250px; padding: 40px;
+        }
+        .page-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 30px;
+        }
+        .page-header h1 { color: #333; font-size: 28px; }
+        .logout-btn {
+            background: #ff4444; color: white; padding: 10px 20px;
+            border: none; border-radius: 8px; cursor: pointer; font-size: 14px;
+        }
+        .logout-btn:hover { background: #cc0000; }
+        
+        /* Stats Cards */
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px; margin-bottom: 30px;
+        }
+        .stat-card {
+            background: white; padding: 25px; border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            border-left: 4px solid #667eea;
+        }
+        .stat-card .label {
+            color: #666; font-size: 14px; margin-bottom: 10px;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .stat-card .value {
+            color: #333; font-size: 32px; font-weight: bold;
+        }
+        .stat-card.green { border-left-color: #4CAF50; }
+        .stat-card.orange { border-left-color: #ff9800; }
+        .stat-card.purple { border-left-color: #764ba2; }
+        
+        /* Section */
+        .section {
+            background: white; padding: 30px; border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 30px;
+        }
+        .section h2 {
+            color: #333; margin-bottom: 20px; font-size: 20px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        
+        /* Table */
+        table {
+            width: 100%; border-collapse: collapse;
+        }
+        th {
+            background: #f8f9ff; padding: 15px; text-align: left;
+            color: #667eea; font-size: 13px; text-transform: uppercase;
+            letter-spacing: 0.5px; border-bottom: 2px solid #e0e0e0;
+        }
+        td {
+            padding: 15px; border-bottom: 1px solid #f0f0f0;
+            color: #333; font-size: 14px;
+        }
+        tr:hover td { background: #fafbff; }
+        .lang-badge {
+            display: inline-block; padding: 4px 10px; border-radius: 12px;
+            font-size: 12px; font-weight: 500;
+        }
+        .lang-badge.source { background: #e3f2fd; color: #1976d2; }
+        .lang-badge.target { background: #f3e5f5; color: #7b1fa2; }
+        
+        .delete-btn {
+            background: #ff4444; color: white; border: none; padding: 5px 12px;
+            border-radius: 5px; cursor: pointer; font-size: 12px;
+        }
+        .delete-btn:hover { background: #cc0000; }
+        
+        .clear-all-btn {
+            background: #ff4444; color: white; padding: 10px 20px;
+            border: none; border-radius: 8px; cursor: pointer; font-size: 14px;
+        }
+        .clear-all-btn:hover { background: #cc0000; }
+        
+        .refresh-btn {
+            background: #667eea; color: white; padding: 10px 20px;
+            border: none; border-radius: 8px; cursor: pointer; font-size: 14px;
+        }
+        .refresh-btn:hover { background: #764ba2; }
+        
+        .empty-state {
+            text-align: center; padding: 40px; color: #999;
+        }
+        
+        .bar-container {
+            background: #f0f0f0; height: 8px; border-radius: 4px;
+            overflow: hidden; margin-top: 5px;
+        }
+        .bar-fill {
+            height: 100%; background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 4px;
+        }
+        
+        .loading {
+            text-align: center; padding: 20px; color: #666;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3; border-top: 4px solid #667eea;
+            border-radius: 50%; width: 40px; height: 40px;
+            animation: spin 1s linear infinite; margin: 0 auto 10px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <!-- Login -->
+    <div class="login-container" id="loginContainer">
+        <div class="login-card">
+            <h1>🔐 Admin Login</h1>
+            <p>LingoLink AI Administration Panel</p>
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="adminUsername" placeholder="admin">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="adminPassword" placeholder="Password">
+            </div>
+            <button class="btn" onclick="adminLogin()">Login</button>
+            <div class="error-message" id="loginError"></div>
+        </div>
+    </div>
+    
+    <!-- Dashboard -->
+    <div class="dashboard" id="dashboard">
+        <div class="sidebar">
+            <h2>🌐 LingoLink</h2>
+            <div class="sidebar-item active" onclick="showPage('overview')">
+                📊 Overview
+            </div>
+            <div class="sidebar-item" onclick="showPage('translations')">
+                📝 Translations
+            </div>
+            <div class="sidebar-item" onclick="showPage('languages')">
+                🌍 Languages
+            </div>
+            <div class="sidebar-item" onclick="window.open('http://localhost:3001', '_blank')">
+                🔗 Open User App
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="page-header">
+                <h1 id="pageTitle">Dashboard Overview</h1>
+                <button class="logout-btn" onclick="adminLogout()">🚪 Logout</button>
+            </div>
+            
+            <!-- Overview Page -->
+            <div id="overviewPage">
+                <div class="stats-grid" id="statsGrid">
+                    <div class="loading"><div class="spinner"></div>Loading...</div>
+                </div>
+                
+                <div class="section">
+                    <h2>Top Language Pairs</h2>
+                    <div id="topLangPairs">Loading...</div>
+                </div>
+            </div>
+            
+            <!-- Translations Page -->
+            <div id="translationsPage" style="display:none;">
+                <div class="section">
+                    <h2>
+                        Recent Translations
+                        <div>
+                            <button class="refresh-btn" onclick="loadTranslations()">🔄 Refresh</button>
+                            <button class="clear-all-btn" onclick="clearAllTranslations()">🗑️ Clear All</button>
+                        </div>
+                    </h2>
+                    <div id="translationsTable">Loading...</div>
+                </div>
+            </div>
+            
+            <!-- Languages Page -->
+            <div id="languagesPage" style="display:none;">
+                <div class="section">
+                    <h2>Supported Languages</h2>
+                    <div id="languagesList">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        let authHeader = null;
+        
+        const languages = [
+            { code: 'aka_Latn', name: 'Akan', region: 'Africa' },
+            { code: 'bem_Latn', name: 'Bemba', region: 'Africa' },
+            { code: 'ewe_Latn', name: 'Ewe', region: 'Africa' },
+            { code: 'fon_Latn', name: 'Fon', region: 'Africa' },
+            { code: 'fuv_Latn', name: 'Fulfulde', region: 'Africa' },
+            { code: 'gaz_Latn', name: 'Oromo', region: 'Africa' },
+            { code: 'hau_Latn', name: 'Hausa', region: 'Africa' },
+            { code: 'ibo_Latn', name: 'Igbo', region: 'Africa' },
+            { code: 'kam_Latn', name: 'Kamba', region: 'Africa' },
+            { code: 'kik_Latn', name: 'Kikuyu', region: 'Africa' },
+            { code: 'kin_Latn', name: 'Kinyarwanda', region: 'Africa' },
+            { code: 'lin_Latn', name: 'Lingala', region: 'Africa' },
+            { code: 'lug_Latn', name: 'Luganda', region: 'Africa' },
+            { code: 'luo_Latn', name: 'Luo', region: 'Africa' },
+            { code: 'nya_Latn', name: 'Nyanja', region: 'Africa' },
+            { code: 'run_Latn', name: 'Rundi', region: 'Africa' },
+            { code: 'sna_Latn', name: 'Shona', region: 'Africa' },
+            { code: 'som_Latn', name: 'Somali', region: 'Africa' },
+            { code: 'swh_Latn', name: 'Swahili', region: 'Africa' },
+            { code: 'twi_Latn', name: 'Twi', region: 'Africa' },
+            { code: 'wol_Latn', name: 'Wolof', region: 'Africa' },
+            { code: 'xho_Latn', name: 'Xhosa', region: 'Africa' },
+            { code: 'yor_Latn', name: 'Yoruba', region: 'Africa' },
+            { code: 'zul_Latn', name: 'Zulu', region: 'Africa' },
+            { code: 'afr_Latn', name: 'Afrikaans', region: 'Africa' },
+            { code: 'arb_Arab', name: 'Arabic', region: 'International' },
+            { code: 'deu_Latn', name: 'German', region: 'International' },
+            { code: 'eng_Latn', name: 'English', region: 'International' },
+            { code: 'fra_Latn', name: 'French', region: 'International' },
+            { code: 'hin_Deva', name: 'Hindi', region: 'International' },
+            { code: 'ita_Latn', name: 'Italian', region: 'International' },
+            { code: 'jpn_Jpan', name: 'Japanese', region: 'International' },
+            { code: 'kor_Kore', name: 'Korean', region: 'International' },
+            { code: 'nld_Latn', name: 'Dutch', region: 'International' },
+            { code: 'por_Latn', name: 'Portuguese', region: 'International' },
+            { code: 'rus_Cyrl', name: 'Russian', region: 'International' },
+            { code: 'spa_Latn', name: 'Spanish', region: 'International' },
+            { code: 'tur_Latn', name: 'Turkish', region: 'International' },
+            { code: 'urd_Arab', name: 'Urdu', region: 'International' },
+            { code: 'vie_Latn', name: 'Vietnamese', region: 'International' },
+            { code: 'zho_Hans', name: 'Chinese', region: 'International' }
+        ];
+        
+        // Check if already logged in
+        const savedAuth = sessionStorage.getItem('adminAuth');
+        if (savedAuth) {
+            authHeader = savedAuth;
+            showDashboard();
+        }
+        
+        async function adminLogin() {
+            const username = document.getElementById('adminUsername').value.trim();
+            const password = document.getElementById('adminPassword').value;
+            const errorDiv = document.getElementById('loginError');
+            
+            errorDiv.classList.remove('show');
+            
+            if (!username || !password) {
+                errorDiv.textContent = 'Please enter username and password';
+                errorDiv.classList.add('show');
+                return;
+            }
+            
+            try {
+                const response = await fetch(API_BASE + '/admin/login/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Invalid credentials');
+                }
+                
+                const basic = btoa(username + ':' + password);
+                authHeader = 'Basic ' + basic;
+                sessionStorage.setItem('adminAuth', authHeader);
+                showDashboard();
+                
+            } catch (error) {
+                errorDiv.textContent = 'Invalid username or password';
+                errorDiv.classList.add('show');
+            }
+        }
+        
+        function adminLogout() {
+            if (confirm('Logout from admin panel?')) {
+                sessionStorage.removeItem('adminAuth');
+                authHeader = null;
+                location.reload();
+            }
+        }
+        
+        function showDashboard() {
+            document.getElementById('loginContainer').style.display = 'none';
+            document.getElementById('dashboard').classList.add('show');
+            loadStats();
+            loadTranslations();
+            loadLanguages();
+        }
+        
+        function showPage(page) {
+            document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            document.getElementById('overviewPage').style.display = 'none';
+            document.getElementById('translationsPage').style.display = 'none';
+            document.getElementById('languagesPage').style.display = 'none';
+            
+            if (page === 'overview') {
+                document.getElementById('pageTitle').textContent = 'Dashboard Overview';
+                document.getElementById('overviewPage').style.display = 'block';
+                loadStats();
+            } else if (page === 'translations') {
+                document.getElementById('pageTitle').textContent = 'All Translations';
+                document.getElementById('translationsPage').style.display = 'block';
+                loadTranslations();
+            } else {
+                document.getElementById('pageTitle').textContent = 'Supported Languages';
+                document.getElementById('languagesPage').style.display = 'block';
+                loadLanguages();
+            }
+        }
+        
+        async function loadStats() {
+            try {
+                const response = await fetch(API_BASE + '/admin/stats/', {
+                    headers: { 'Authorization': authHeader }
+                });
+                
+                if (!response.ok) {
+                    if (response.status === 401) adminLogout();
+                    throw new Error('Failed to load stats');
+                }
+                
+                const data = await response.json();
+                
+                document.getElementById('statsGrid').innerHTML = `
+                    <div class="stat-card">
+                        <div class="label">Total Translations</div>
+                        <div class="value">${data.total_translations}</div>
+                    </div>
+                    <div class="stat-card green">
+                        <div class="label">Last 24 Hours</div>
+                        <div class="value">${data.last_24h}</div>
+                    </div>
+                    <div class="stat-card orange">
+                        <div class="label">Last 7 Days</div>
+                        <div class="value">${data.last_7d}</div>
+                    </div>
+                    <div class="stat-card purple">
+                        <div class="label">Languages</div>
+                        <div class="value">${languages.length}</div>
+                    </div>
+                `;
+                
+                const maxCount = Math.max(...data.top_language_pairs.map(p => p.count), 1);
+                if (data.top_language_pairs.length === 0) {
+                    document.getElementById('topLangPairs').innerHTML = '<div class="empty-state">No data yet</div>';
+                } else {
+                    document.getElementById('topLangPairs').innerHTML = data.top_language_pairs.map(p => `
+                        <div style="margin-bottom:15px;">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                                <span>
+                                    <span class="lang-badge source">${p.source}</span>
+                                    → 
+                                    <span class="lang-badge target">${p.target}</span>
+                                </span>
+                                <strong>${p.count}</strong>
+                            </div>
+                            <div class="bar-container">
+                                <div class="bar-fill" style="width:${(p.count/maxCount)*100}%"></div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+                
+            } catch (error) {
+                console.error('Stats error:', error);
+            }
+        }
+        
+        async function loadTranslations() {
+            try {
+                const response = await fetch(API_BASE + '/admin/translations/?limit=100', {
+                    headers: { 'Authorization': authHeader }
+                });
+                
+                if (!response.ok) {
+                    if (response.status === 401) adminLogout();
+                    throw new Error('Failed to load translations');
+                }
+                
+                const data = await response.json();
+                
+                if (data.records.length === 0) {
+                    document.getElementById('translationsTable').innerHTML = 
+                        '<div class="empty-state">No translations yet</div>';
+                    return;
+                }
+                
+                document.getElementById('translationsTable').innerHTML = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Source</th>
+                                <th>Translation</th>
+                                <th>Languages</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.records.map(r => `
+                                <tr>
+                                    <td>#${r.id}</td>
+                                    <td style="max-width:250px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${r.source_text}</td>
+                                    <td style="max-width:250px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${r.translated_text}</td>
+                                    <td>
+                                        <span class="lang-badge source">${r.source_lang}</span>
+                                        <span class="lang-badge target">${r.target_lang}</span>
+                                    </td>
+                                    <td>${r.created_at ? new Date(r.created_at).toLocaleString() : 'N/A'}</td>
+                                    <td>
+                                        <button class="delete-btn" onclick="deleteTranslation(${r.id})">Delete</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+                
+            } catch (error) {
+                console.error('Translations error:', error);
+            }
+        }
+        
+        async function deleteTranslation(id) {
+            if (!confirm('Delete translation #' + id + '?')) return;
+            
+            try {
+                const response = await fetch(API_BASE + '/admin/translations/' + id, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': authHeader }
+                });
+                
+                if (response.ok) {
+                    loadTranslations();
+                    loadStats();
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        async function clearAllTranslations() {
+            if (!confirm('⚠️ Delete ALL translations? This cannot be undone!')) return;
+            if (!confirm('Are you absolutely sure?')) return;
+            
+            try {
+                const response = await fetch(API_BASE + '/admin/translations/', {
+                    method: 'DELETE',
+                    headers: { 'Authorization': authHeader }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    alert(data.message);
+                    loadTranslations();
+                    loadStats();
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        function loadLanguages() {
+            const african = languages.filter(l => l.region === 'Africa');
+            const international = languages.filter(l => l.region === 'International');
+            
+            document.getElementById('languagesList').innerHTML = `
+                <h3 style="color:#667eea; margin-bottom:15px;">🌍 African Languages (${african.length})</h3>
+                <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:10px; margin-bottom:30px;">
+                    ${african.map(l => `
+                        <div style="padding:10px; background:#f8f9ff; border-radius:8px; border-left:3px solid #667eea;">
+                            <div style="font-weight:500; color:#333;">${l.name}</div>
+                            <div style="font-size:12px; color:#666;">${l.code}</div>
+                        </div>
+                    `).join('')}
+                </div>
+                
+                <h3 style="color:#764ba2; margin-bottom:15px;">🌐 International Languages (${international.length})</h3>
+                <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:10px;">
+                    ${international.map(l => `
+                        <div style="padding:10px; background:#faf5ff; border-radius:8px; border-left:3px solid #764ba2;">
+                            <div style="font-weight:500; color:#333;">${l.name}</div>
+                            <div style="font-size:12px; color:#666;">${l.code}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
