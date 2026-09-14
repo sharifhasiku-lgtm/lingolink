@@ -3,6 +3,7 @@
 <head>
     <title>LingoLink Admin Dashboard</title>
     <link rel="icon" href="data:,">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -16,6 +17,7 @@
             display: flex; justify-content: center; align-items: center;
             min-height: 100vh;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            padding: 20px;
         }
         .login-card {
             background: white; padding: 40px; border-radius: 20px;
@@ -95,9 +97,7 @@
             color: #666; font-size: 14px; margin-bottom: 10px;
             text-transform: uppercase; letter-spacing: 0.5px;
         }
-        .stat-card .value {
-            color: #333; font-size: 32px; font-weight: bold;
-        }
+        .stat-card .value { color: #333; font-size: 32px; font-weight: bold; }
         .stat-card.green { border-left-color: #4CAF50; }
         .stat-card.orange { border-left-color: #ff9800; }
         .stat-card.purple { border-left-color: #764ba2; }
@@ -113,9 +113,7 @@
         }
         
         /* Table */
-        table {
-            width: 100%; border-collapse: collapse;
-        }
+        table { width: 100%; border-collapse: collapse; }
         th {
             background: #f8f9ff; padding: 15px; text-align: left;
             color: #667eea; font-size: 13px; text-transform: uppercase;
@@ -151,9 +149,7 @@
         }
         .refresh-btn:hover { background: #764ba2; }
         
-        .empty-state {
-            text-align: center; padding: 40px; color: #999;
-        }
+        .empty-state { text-align: center; padding: 40px; color: #999; }
         
         .bar-container {
             background: #f0f0f0; height: 8px; border-radius: 4px;
@@ -164,15 +160,66 @@
             border-radius: 4px;
         }
         
-        .loading {
-            text-align: center; padding: 20px; color: #666;
-        }
+        .loading { text-align: center; padding: 20px; color: #666; }
         .spinner {
             border: 4px solid #f3f3f3; border-top: 4px solid #667eea;
             border-radius: 50%; width: 40px; height: 40px;
             animation: spin 1s linear infinite; margin: 0 auto 10px;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* MOBILE STYLES */
+        @media (max-width: 768px) {
+            .login-card { padding: 25px; }
+            .login-card h1 { font-size: 22px; }
+            .login-card p { font-size: 13px; margin-bottom: 20px; }
+            input { padding: 14px 12px; font-size: 16px; }
+            .btn { padding: 16px; font-size: 16px; }
+            
+            .sidebar {
+                position: relative;
+                width: 100%;
+                height: auto;
+                padding: 15px 0;
+            }
+            .sidebar h2 { padding: 0 15px; margin-bottom: 15px; font-size: 16px; }
+            .sidebar-item { padding: 14px 20px; font-size: 14px; }
+            
+            .main-content { margin-left: 0; padding: 15px; }
+            .page-header { flex-direction: column; gap: 12px; align-items: stretch; }
+            .page-header h1 { font-size: 20px; text-align: center; }
+            .logout-btn { width: 100%; padding: 14px; font-size: 15px; }
+            
+            .stats-grid { grid-template-columns: 1fr; gap: 12px; }
+            .stat-card { padding: 18px; }
+            .stat-card .label { font-size: 12px; }
+            .stat-card .value { font-size: 26px; }
+            
+            .section { padding: 15px; margin-bottom: 15px; }
+            .section h2 {
+                font-size: 16px;
+                flex-direction: column;
+                gap: 10px;
+                align-items: stretch;
+            }
+            .section h2 > div {
+                display: flex;
+                gap: 8px;
+                width: 100%;
+            }
+            .refresh-btn, .clear-all-btn {
+                flex: 1;
+                padding: 12px 8px;
+                font-size: 13px;
+            }
+            
+            table { font-size: 12px; display: block; overflow-x: auto; white-space: nowrap; }
+            th, td { padding: 10px 8px; }
+            .lang-badge { font-size: 10px; padding: 3px 8px; }
+            .delete-btn { padding: 6px 10px; font-size: 11px; }
+            
+            .bar-container { height: 6px; }
+        }
     </style>
 </head>
 <body>
@@ -187,7 +234,7 @@
             </div>
             <div class="form-group">
                 <label>Password</label>
-                <input type="password" id="adminPassword" placeholder="Password">
+                <input type="password" id="adminPassword" placeholder="Password" onkeypress="if(event.key==='Enter')adminLogin()">
             </div>
             <button class="btn" onclick="adminLogin()">Login</button>
             <div class="error-message" id="loginError"></div>
@@ -198,16 +245,16 @@
     <div class="dashboard" id="dashboard">
         <div class="sidebar">
             <h2>🌐 LingoLink</h2>
-            <div class="sidebar-item active" onclick="showPage('overview')">
+            <div class="sidebar-item active" onclick="showPage('overview', event)">
                 📊 Overview
             </div>
-            <div class="sidebar-item" onclick="showPage('translations')">
+            <div class="sidebar-item" onclick="showPage('translations', event)">
                 📝 Translations
             </div>
-            <div class="sidebar-item" onclick="showPage('languages')">
+            <div class="sidebar-item" onclick="showPage('languages', event)">
                 🌍 Languages
             </div>
-            <div class="sidebar-item" onclick="window.open('https://suddenly-begins-adipex-gtk.trycloudflare.com', '_blank')">
+            <div class="sidebar-item" onclick="window.open('https://suddenly-begins-adipex-gtk.trycloudflare.com/translator.html', '_blank')">
                 🔗 Open User App
             </div>
         </div>
@@ -329,9 +376,7 @@
                     body: JSON.stringify({ username, password })
                 });
                 
-                if (!response.ok) {
-                    throw new Error('Invalid credentials');
-                }
+                if (!response.ok) throw new Error('Invalid credentials');
                 
                 const basic = btoa(username + ':' + password);
                 authHeader = 'Basic ' + basic;
@@ -360,9 +405,11 @@
             loadLanguages();
         }
         
-        function showPage(page) {
+        function showPage(page, event) {
             document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
-            event.target.classList.add('active');
+            if (event && event.target) {
+                event.target.classList.add('active');
+            }
             
             document.getElementById('overviewPage').style.display = 'none';
             document.getElementById('translationsPage').style.display = 'none';
@@ -399,24 +446,24 @@
                 document.getElementById('statsGrid').innerHTML = `
                     <div class="stat-card">
                         <div class="label">Total Translations</div>
-                        <div class="value">${data.total_translations}</div>
+                        <div class="value">${data.total_translations || 0}</div>
                     </div>
                     <div class="stat-card green">
                         <div class="label">Last 24 Hours</div>
-                        <div class="value">${data.last_24h}</div>
+                        <div class="value">${data.last_24h || 0}</div>
                     </div>
                     <div class="stat-card orange">
                         <div class="label">Last 7 Days</div>
-                        <div class="value">${data.last_7d}</div>
+                        <div class="value">${data.last_7d || 0}</div>
                     </div>
                     <div class="stat-card purple">
-                        <div class="label">Languages</div>
-                        <div class="value">${languages.length}</div>
+                        <div class="label">Total Users</div>
+                        <div class="value">${data.total_users || 0}</div>
                     </div>
                 `;
                 
-                const maxCount = Math.max(...data.top_language_pairs.map(p => p.count), 1);
-                if (data.top_language_pairs.length === 0) {
+                const maxCount = Math.max(...(data.top_language_pairs || []).map(p => p.count), 1);
+                if (!data.top_language_pairs || data.top_language_pairs.length === 0) {
                     document.getElementById('topLangPairs').innerHTML = '<div class="empty-state">No data yet</div>';
                 } else {
                     document.getElementById('topLangPairs').innerHTML = data.top_language_pairs.map(p => `
@@ -454,7 +501,7 @@
                 
                 const data = await response.json();
                 
-                if (data.records.length === 0) {
+                if (!data.records || data.records.length === 0) {
                     document.getElementById('translationsTable').innerHTML = 
                         '<div class="empty-state">No translations yet</div>';
                     return;
@@ -541,22 +588,22 @@
             const international = languages.filter(l => l.region === 'International');
             
             document.getElementById('languagesList').innerHTML = `
-                <h3 style="color:#667eea; margin-bottom:15px;">🌍 African Languages (${african.length})</h3>
-                <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:10px; margin-bottom:30px;">
+                <h3 style="color:#667eea; margin-bottom:15px; font-size:16px;">🌍 African Languages (${african.length})</h3>
+                <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; margin-bottom:30px;">
                     ${african.map(l => `
                         <div style="padding:10px; background:#f8f9ff; border-radius:8px; border-left:3px solid #667eea;">
-                            <div style="font-weight:500; color:#333;">${l.name}</div>
-                            <div style="font-size:12px; color:#666;">${l.code}</div>
+                            <div style="font-weight:500; color:#333; font-size:14px;">${l.name}</div>
+                            <div style="font-size:11px; color:#666;">${l.code}</div>
                         </div>
                     `).join('')}
                 </div>
                 
-                <h3 style="color:#764ba2; margin-bottom:15px;">🌐 International Languages (${international.length})</h3>
-                <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:10px;">
+                <h3 style="color:#764ba2; margin-bottom:15px; font-size:16px;">🌐 International Languages (${international.length})</h3>
+                <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px;">
                     ${international.map(l => `
                         <div style="padding:10px; background:#faf5ff; border-radius:8px; border-left:3px solid #764ba2;">
-                            <div style="font-weight:500; color:#333;">${l.name}</div>
-                            <div style="font-size:12px; color:#666;">${l.code}</div>
+                            <div style="font-weight:500; color:#333; font-size:14px;">${l.name}</div>
+                            <div style="font-size:11px; color:#666;">${l.code}</div>
                         </div>
                     `).join('')}
                 </div>

@@ -133,39 +133,20 @@
             display: flex; gap: 50px; justify-content: center;
             margin-top: 60px; flex-wrap: wrap;
         }
-        .stat {
-            text-align: center;
-        }
-        .stat-value {
-            font-size: 36px; font-weight: 800;
-            margin-bottom: 5px;
-        }
-        .stat-label {
-            font-size: 14px; opacity: 0.85;
-            text-transform: uppercase; letter-spacing: 1px;
-        }
+        .stat { text-align: center; }
+        .stat-value { font-size: 36px; font-weight: 800; margin-bottom: 5px; }
+        .stat-label { font-size: 14px; opacity: 0.85; text-transform: uppercase; letter-spacing: 1px; }
         
         /* Sections */
-        .section {
-            padding: 100px 30px;
-            max-width: 1200px; margin: 0 auto;
-        }
-        .section-header {
-            text-align: center; margin-bottom: 70px;
-        }
+        .section { padding: 100px 30px; max-width: 1200px; margin: 0 auto; }
+        .section-header { text-align: center; margin-bottom: 70px; }
         .section-header .label {
             color: #667eea; font-weight: 600;
             text-transform: uppercase; letter-spacing: 2px;
             font-size: 14px; margin-bottom: 15px;
         }
-        .section-header h2 {
-            font-size: 42px; color: #333;
-            margin-bottom: 20px; font-weight: 800;
-        }
-        .section-header p {
-            font-size: 18px; color: #666;
-            max-width: 600px; margin: 0 auto;
-        }
+        .section-header h2 { font-size: 42px; color: #333; margin-bottom: 20px; font-weight: 800; }
+        .section-header p { font-size: 18px; color: #666; max-width: 600px; margin: 0 auto; }
         
         /* Features */
         .features-grid {
@@ -184,16 +165,9 @@
             transform: translateY(-8px);
             box-shadow: 0 20px 50px rgba(102,126,234,0.15);
         }
-        .feature-icon {
-            font-size: 48px; margin-bottom: 20px;
-            display: inline-block;
-        }
-        .feature-card h3 {
-            font-size: 22px; margin-bottom: 15px; color: #333;
-        }
-        .feature-card p {
-            color: #666; font-size: 15px; line-height: 1.7;
-        }
+        .feature-icon { font-size: 48px; margin-bottom: 20px; display: inline-block; }
+        .feature-card h3 { font-size: 22px; margin-bottom: 15px; color: #333; }
+        .feature-card p { color: #666; font-size: 15px; line-height: 1.7; }
         
         /* Languages */
         .languages-section {
@@ -222,9 +196,7 @@
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 40px; margin-top: 40px;
         }
-        .step {
-            text-align: center; position: relative;
-        }
+        .step { text-align: center; position: relative; }
         .step-number {
             width: 70px; height: 70px;
             background: linear-gradient(135deg, #667eea, #764ba2);
@@ -234,12 +206,8 @@
             margin: 0 auto 25px;
             box-shadow: 0 10px 25px rgba(102,126,234,0.3);
         }
-        .step h3 {
-            font-size: 20px; margin-bottom: 10px;
-        }
-        .step p {
-            color: #666; font-size: 15px;
-        }
+        .step h3 { font-size: 20px; margin-bottom: 10px; }
+        .step p { color: #666; font-size: 15px; }
         
         /* CTA Section */
         .cta-section {
@@ -247,9 +215,7 @@
             padding: 100px 30px; text-align: center;
             color: white;
         }
-        .cta-section h2 {
-            font-size: 42px; margin-bottom: 20px;
-        }
+        .cta-section h2 { font-size: 42px; margin-bottom: 20px; }
         .cta-section p {
             font-size: 18px; margin-bottom: 40px;
             opacity: 0.95; max-width: 600px;
@@ -262,9 +228,7 @@
             padding: 60px 30px 30px;
             text-align: center;
         }
-        .footer-content {
-            max-width: 1200px; margin: 0 auto;
-        }
+        .footer-content { max-width: 1200px; margin: 0 auto; }
         .footer-logo {
             font-size: 28px; font-weight: bold;
             background: linear-gradient(135deg, #667eea, #764ba2);
@@ -287,16 +251,6 @@
             font-size: 14px;
         }
         
-        /* Mobile */
-        @media (max-width: 768px) {
-            .nav-links { display: none; }
-            .hero h1 { font-size: 38px; }
-            .hero p { font-size: 17px; }
-            .stats-bar { gap: 30px; }
-            .stat-value { font-size: 28px; }
-            .section h2, .cta-section h2 { font-size: 32px; }
-        }
-        
         /* Animations on scroll */
         .fade-in {
             opacity: 0; transform: translateY(30px);
@@ -305,13 +259,63 @@
         .fade-in.visible {
             opacity: 1; transform: translateY(0);
         }
+        
+        /* MOBILE STYLES */
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+            .nav-container { padding: 0 15px; }
+            .logo { font-size: 20px; }
+            
+            .hero { padding: 100px 20px 60px; }
+            .hero h1 { font-size: 34px; line-height: 1.2; }
+            .hero p { font-size: 16px; padding: 0 10px; margin-bottom: 30px; }
+            .hero-badge { font-size: 12px; padding: 6px 15px; }
+            .hero-buttons { flex-direction: column; align-items: center; gap: 15px; }
+            .btn-primary, .btn-secondary {
+                width: 100%; max-width: 300px;
+                padding: 14px 20px; font-size: 16px;
+            }
+            
+            .stats-bar { gap: 20px; margin-top: 40px; }
+            .stat-value { font-size: 26px; }
+            .stat-label { font-size: 11px; }
+            
+            .section { padding: 60px 20px; }
+            .section-header { margin-bottom: 40px; }
+            .section-header h2 { font-size: 26px; }
+            .section-header p { font-size: 15px; }
+            .section-header .label { font-size: 12px; }
+            
+            .features-grid { grid-template-columns: 1fr; gap: 20px; }
+            .feature-card { padding: 30px 20px; }
+            .feature-icon { font-size: 40px; margin-bottom: 15px; }
+            .feature-card h3 { font-size: 18px; }
+            .feature-card p { font-size: 14px; }
+            
+            .languages-section { padding: 60px 20px; }
+            .lang-chip { padding: 8px 16px; font-size: 13px; }
+            
+            .steps { grid-template-columns: 1fr; gap: 30px; }
+            .step-number { width: 60px; height: 60px; font-size: 24px; margin-bottom: 20px; }
+            .step h3 { font-size: 18px; }
+            .step p { font-size: 14px; }
+            
+            .cta-section { padding: 60px 20px; }
+            .cta-section h2 { font-size: 26px; }
+            .cta-section p { font-size: 15px; margin-bottom: 30px; }
+            
+            footer { padding: 40px 20px 20px; }
+            .footer-logo { font-size: 22px; }
+            .footer-links { gap: 15px; font-size: 14px; flex-direction: column; }
+            .footer-copyright { font-size: 12px; }
+        }
     </style>
 </head>
 <body>
     <!-- Navbar -->
     <nav class="navbar">
         <div class="nav-container">
-            <div class="logo">ðŸŒ LingoLink AI</div>
+            <div class="logo">🌐 LingoLink AI</div>
             <div class="nav-links">
                 <a href="#features">Features</a>
                 <a href="#languages">Languages</a>
@@ -324,11 +328,11 @@
     <!-- Hero -->
     <section class="hero">
         <div class="hero-content">
-            <div class="hero-badge">âœ¨ Powered by AI â€” NLLB-200 & Whisper</div>
+            <div class="hero-badge">✨ Powered by AI — NLLB-200 & Whisper</div>
             <h1>Break Language Barriers with <span>AI Translation</span></h1>
             <p>Translate text, audio, and video across 40+ African and international languages. Instantly. Accurately. Freely.</p>
             <div class="hero-buttons">
-                <a href="translator.html" class="btn-primary">ðŸš€ Start Translating Free</a>
+                <a href="translator.html" class="btn-primary">🚀 Start Translating Free</a>
                 <a href="#features" class="btn-secondary">Learn More</a>
             </div>
             
@@ -354,39 +358,39 @@
         <div class="section-header fade-in">
             <div class="label">Features</div>
             <h2>Everything You Need to Communicate</h2>
-            <p>From casual chat to professional meetings â€” LingoLink handles it all.</p>
+            <p>From casual chat to professional meetings — LingoLink handles it all.</p>
         </div>
         
         <div class="features-grid">
             <div class="feature-card fade-in">
-                <div class="feature-icon">ðŸŽ¤</div>
+                <div class="feature-icon">🎤</div>
                 <h3>Record & Translate</h3>
                 <p>Speak into your microphone and get instant transcription and translation in any supported language.</p>
             </div>
             <div class="feature-card fade-in">
-                <div class="feature-icon">ðŸŽµ</div>
+                <div class="feature-icon">🎵</div>
                 <h3>Audio Upload</h3>
                 <p>Upload MP3, WAV, or M4A files and let our AI transcribe and translate them in seconds.</p>
             </div>
             <div class="feature-card fade-in">
-                <div class="feature-icon">ðŸŽ¬</div>
+                <div class="feature-icon">🎬</div>
                 <h3>Video Support</h3>
-                <p>Upload video files â€” we extract the speech and translate it, so nothing gets lost in translation.</p>
+                <p>Upload video files — we extract the speech and translate it, so nothing gets lost in translation.</p>
             </div>
             <div class="feature-card fade-in">
-                <div class="feature-icon">ðŸ”Š</div>
+                <div class="feature-icon">🔊</div>
                 <h3>Audio Output</h3>
                 <p>Listen to the translation in your target language with natural-sounding text-to-speech.</p>
             </div>
             <div class="feature-card fade-in">
-                <div class="feature-icon">ðŸ“œ</div>
+                <div class="feature-icon">📜</div>
                 <h3>Translation History</h3>
                 <p>Every translation is saved. Browse, search, and revisit your history anytime.</p>
             </div>
             <div class="feature-card fade-in">
-                <div class="feature-icon">ðŸŒ</div>
+                <div class="feature-icon">🌍</div>
                 <h3>African Languages First</h3>
-                <p>Built with East African languages in mind â€” Swahili, Luganda, Kikuyu, Lingala, and more.</p>
+                <p>Built with East African languages in mind — Swahili, Luganda, Kikuyu, Lingala, and more.</p>
             </div>
         </div>
     </section>
@@ -400,36 +404,36 @@
         </div>
         
         <div class="languages-grid fade-in">
-            <span class="lang-chip">ðŸ‡¹ðŸ‡¿ Swahili</span>
-            <span class="lang-chip">ðŸ‡ºðŸ‡¬ Luganda</span>
-            <span class="lang-chip">ðŸ‡°ðŸ‡ª Kikuyu</span>
-            <span class="lang-chip">ðŸ‡°ðŸ‡ª Luo</span>
-            <span class="lang-chip">ðŸ‡°ðŸ‡ª Kamba</span>
-            <span class="lang-chip">ðŸ‡¨ðŸ‡© Lingala</span>
-            <span class="lang-chip">ðŸ‡·ðŸ‡¼ Kinyarwanda</span>
-            <span class="lang-chip">ðŸ‡³ðŸ‡¬ Yoruba</span>
-            <span class="lang-chip">ðŸ‡³ðŸ‡¬ Igbo</span>
-            <span class="lang-chip">ðŸ‡³ðŸ‡¬ Hausa</span>
-            <span class="lang-chip">ðŸ‡¿ðŸ‡¦ Zulu</span>
-            <span class="lang-chip">ðŸ‡¿ðŸ‡¦ Xhosa</span>
-            <span class="lang-chip">ðŸ‡¿ðŸ‡¦ Afrikaans</span>
-            <span class="lang-chip">ðŸ‡¬ðŸ‡­ Twi</span>
-            <span class="lang-chip">ðŸ‡¸ðŸ‡´ Somali</span>
-            <span class="lang-chip">ðŸ‡ªðŸ‡¹ Oromo</span>
-            <span class="lang-chip">ðŸ‡¿ðŸ‡¼ Shona</span>
-            <span class="lang-chip">ðŸ‡²ðŸ‡¼ Nyanja</span>
-            <span class="lang-chip">ðŸ‡¬ðŸ‡§ English</span>
-            <span class="lang-chip">ðŸ‡«ðŸ‡· French</span>
-            <span class="lang-chip">ðŸ‡ªðŸ‡¸ Spanish</span>
-            <span class="lang-chip">ðŸ‡©ðŸ‡ª German</span>
-            <span class="lang-chip">ðŸ‡¸ðŸ‡¦ Arabic</span>
-            <span class="lang-chip">ðŸ‡¨ðŸ‡³ Chinese</span>
-            <span class="lang-chip">ðŸ‡¯ðŸ‡µ Japanese</span>
-            <span class="lang-chip">ðŸ‡°ðŸ‡· Korean</span>
-            <span class="lang-chip">ðŸ‡®ðŸ‡³ Hindi</span>
-            <span class="lang-chip">ðŸ‡·ðŸ‡º Russian</span>
-            <span class="lang-chip">ðŸ‡µðŸ‡¹ Portuguese</span>
-            <span class="lang-chip">ðŸ‡®ðŸ‡¹ Italian</span>
+            <span class="lang-chip">🇹🇿 Swahili</span>
+            <span class="lang-chip">🇺🇬 Luganda</span>
+            <span class="lang-chip">🇰🇪 Kikuyu</span>
+            <span class="lang-chip">🇰🇪 Luo</span>
+            <span class="lang-chip">🇰🇪 Kamba</span>
+            <span class="lang-chip">🇨🇩 Lingala</span>
+            <span class="lang-chip">🇷🇼 Kinyarwanda</span>
+            <span class="lang-chip">🇳🇬 Yoruba</span>
+            <span class="lang-chip">🇳🇬 Igbo</span>
+            <span class="lang-chip">🇳🇬 Hausa</span>
+            <span class="lang-chip">🇿🇦 Zulu</span>
+            <span class="lang-chip">🇿🇦 Xhosa</span>
+            <span class="lang-chip">🇿🇦 Afrikaans</span>
+            <span class="lang-chip">🇬🇭 Twi</span>
+            <span class="lang-chip">🇸🇴 Somali</span>
+            <span class="lang-chip">🇪🇹 Oromo</span>
+            <span class="lang-chip">🇿🇼 Shona</span>
+            <span class="lang-chip">🇲🇼 Nyanja</span>
+            <span class="lang-chip">🇬🇧 English</span>
+            <span class="lang-chip">🇫🇷 French</span>
+            <span class="lang-chip">🇪🇸 Spanish</span>
+            <span class="lang-chip">🇩🇪 German</span>
+            <span class="lang-chip">🇸🇦 Arabic</span>
+            <span class="lang-chip">🇨🇳 Chinese</span>
+            <span class="lang-chip">🇯🇵 Japanese</span>
+            <span class="lang-chip">🇰🇷 Korean</span>
+            <span class="lang-chip">🇮🇳 Hindi</span>
+            <span class="lang-chip">🇷🇺 Russian</span>
+            <span class="lang-chip">🇵🇹 Portuguese</span>
+            <span class="lang-chip">🇮🇹 Italian</span>
         </div>
     </section>
     
@@ -465,14 +469,14 @@
         <div class="fade-in">
             <h2>Ready to Break Language Barriers?</h2>
             <p>Join users translating across Africa and the world. No credit card. No limits.</p>
-            <a href="translator.html" class="btn-primary">ðŸš€ Get Started Now</a>
+            <a href="translator.html" class="btn-primary">🚀 Get Started Now</a>
         </div>
     </section>
     
     <!-- Footer -->
     <footer>
         <div class="footer-content">
-            <div class="footer-logo">ðŸŒ LingoLink AI</div>
+            <div class="footer-logo">🌐 LingoLink AI</div>
             <div class="footer-links">
                 <a href="#features">Features</a>
                 <a href="#languages">Languages</a>
@@ -481,13 +485,12 @@
                 <a href="admin.html">Admin</a>
             </div>
             <div class="footer-copyright">
-                Â© 2026 LingoLink AI. Built with FastAPI, NLLB-200, and Whisper.
+                © 2026 LingoLink AI. Built with FastAPI, NLLB-200, and Whisper.
             </div>
         </div>
     </footer>
     
     <script>
-        // Scroll animations
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
@@ -498,7 +501,6 @@
         
         document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
         
-        // Smooth scroll for nav links
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function (e) {
                 e.preventDefault();
