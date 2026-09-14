@@ -5,99 +5,173 @@
     <link rel="icon" href="data:,">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; display: flex; justify-content: center; align-items: center; }
-        .auth-container { background: white; border-radius: 20px; padding: 40px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); width: 100%; max-width: 400px; }
+        :root {
+            --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --card-bg: white;
+            --text: #333;
+            --text-muted: #666;
+            --text-light: #999;
+            --border: #e0e0e0;
+            --input-bg: white;
+            --input-border: #e0e0e0;
+            --result-bg: #f8f9ff;
+            --result-text-bg: white;
+            --history-bg: white;
+            --hover-bg: #f0f0f0;
+            --shadow: rgba(0,0,0,0.3);
+        }
+        body.dark {
+            --bg-gradient: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            --card-bg: #1e1e2e;
+            --text: #e8e8f0;
+            --text-muted: #b0b0c0;
+            --text-light: #808090;
+            --border: #3a3a4e;
+            --input-bg: #2a2a3e;
+            --input-border: #3a3a4e;
+            --result-bg: #2a2a3e;
+            --result-text-bg: #1e1e2e;
+            --history-bg: #2a2a3e;
+            --hover-bg: #3a3a4e;
+            --shadow: rgba(0,0,0,0.6);
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; transition: background-color 0.3s, color 0.3s, border-color 0.3s; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg-gradient); min-height: 100vh; padding: 20px; display: flex; justify-content: center; align-items: center; color: var(--text); }
+        .auth-container { background: var(--card-bg); border-radius: 20px; padding: 40px; box-shadow: 0 20px 60px var(--shadow); width: 100%; max-width: 400px; }
         .auth-header { text-align: center; margin-bottom: 30px; }
-        .auth-header h1 { color: #333; font-size: 28px; margin-bottom: 10px; }
-        .auth-header p { color: #666; font-size: 14px; }
-        .auth-tabs { display: flex; gap: 10px; margin-bottom: 30px; border-bottom: 2px solid #e0e0e0; }
-        .auth-tab { flex: 1; padding: 10px; cursor: pointer; border: none; background: none; font-size: 16px; color: #666; }
+        .auth-header h1 { color: var(--text); font-size: 28px; margin-bottom: 10px; }
+        .auth-header p { color: var(--text-muted); font-size: 14px; }
+        .auth-tabs { display: flex; gap: 10px; margin-bottom: 30px; border-bottom: 2px solid var(--border); }
+        .auth-tab { flex: 1; padding: 10px; cursor: pointer; border: none; background: none; font-size: 16px; color: var(--text-muted); }
         .auth-tab.active { color: #667eea; border-bottom: 3px solid #667eea; font-weight: bold; }
         .form-group { margin-bottom: 20px; }
-        label { display: block; margin-bottom: 5px; color: #333; font-weight: 500; font-size: 14px; }
-        input { width: 100%; padding: 12px 15px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; }
+        label { display: block; margin-bottom: 5px; color: var(--text); font-weight: 500; font-size: 14px; }
+        input { width: 100%; padding: 12px 15px; border: 2px solid var(--input-border); background: var(--input-bg); color: var(--text); border-radius: 8px; font-size: 16px; }
         input:focus { outline: none; border-color: #667eea; }
         .btn { background: #667eea; color: white; padding: 15px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; width: 100%; margin-top: 10px; transition: all 0.3s; }
         .btn:hover { background: #764ba2; }
         .btn:disabled { background: #ccc; cursor: not-allowed; }
-        .error-message { color: #ff4444; font-size: 14px; margin-top: 5px; display: none; padding: 10px; background: #fff0f0; border-radius: 5px; }
+        .error-message { color: #ff4444; font-size: 14px; margin-top: 5px; display: none; padding: 10px; background: rgba(255,68,68,0.1); border-radius: 5px; }
         .error-message.show { display: block; }
-        .success-message { color: #4CAF50; font-size: 14px; margin-top: 5px; display: none; padding: 10px; background: #f0fff0; border-radius: 5px; }
+        .success-message { color: #4CAF50; font-size: 14px; margin-top: 5px; display: none; padding: 10px; background: rgba(76,175,80,0.1); border-radius: 5px; }
         .success-message.show { display: block; }
-        .main-app { display: none; width: 100%; max-width: 1000px; margin: 0 auto; background: white; border-radius: 20px; padding: 40px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        .main-app { display: none; width: 100%; max-width: 1000px; margin: 0 auto; background: var(--card-bg); border-radius: 20px; padding: 40px; box-shadow: 0 20px 60px var(--shadow); }
         .main-app.show { display: block; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-        h1 { color: #333; text-align: center; flex: 1; }
-        .subtitle { color: #666; margin-bottom: 30px; text-align: center; }
+        h1 { color: var(--text); text-align: center; flex: 1; }
+        .subtitle { color: var(--text-muted); margin-bottom: 30px; text-align: center; }
         .profile-container { position: relative; display: inline-block; }
         .profile-icon { width: 40px; height: 40px; border-radius: 50%; background: #667eea; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; border: none; }
         .profile-icon:hover { background: #764ba2; }
-        .dropdown-menu { display: none; position: absolute; right: 0; top: 50px; background: white; box-shadow: 0 10px 30px rgba(0,0,0,0.2); border-radius: 10px; min-width: 220px; z-index: 1000; overflow: hidden; }
+        .dropdown-menu { display: none; position: absolute; right: 0; top: 50px; background: var(--card-bg); box-shadow: 0 10px 30px var(--shadow); border-radius: 10px; min-width: 220px; z-index: 1000; overflow: hidden; }
         .dropdown-menu.show { display: block; }
-        .dropdown-item { padding: 12px 20px; cursor: pointer; color: #333; display: flex; align-items: center; gap: 10px; border: none; background: none; width: 100%; text-align: left; font-size: 14px; }
-        .dropdown-item:hover { background: #f0f0f0; }
-        .tabs { display: flex; gap: 10px; margin-bottom: 30px; border-bottom: 2px solid #e0e0e0; flex-wrap: wrap; }
-        .tab { padding: 10px 20px; cursor: pointer; border: none; background: none; font-size: 16px; color: #666; }
+        .dropdown-item { padding: 12px 20px; cursor: pointer; color: var(--text); display: flex; align-items: center; gap: 10px; border: none; background: none; width: 100%; text-align: left; font-size: 14px; }
+        .dropdown-item:hover { background: var(--hover-bg); }
+        .tabs { display: flex; gap: 10px; margin-bottom: 30px; border-bottom: 2px solid var(--border); flex-wrap: wrap; }
+        .tab { padding: 10px 20px; cursor: pointer; border: none; background: none; font-size: 16px; color: var(--text-muted); }
         .tab.active { color: #667eea; border-bottom: 3px solid #667eea; font-weight: bold; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-        textarea { width: 100%; height: 120px; padding: 15px; border: 2px solid #667eea; border-radius: 10px; font-size: 16px; resize: vertical; margin-bottom: 20px; }
+        textarea { width: 100%; height: 120px; padding: 15px; border: 2px solid #667eea; background: var(--input-bg); color: var(--text); border-radius: 10px; font-size: 16px; resize: vertical; margin-bottom: 20px; }
         textarea:focus { outline: none; border-color: #764ba2; }
         .language-selector { display: flex; gap: 20px; margin: 20px 0; flex-wrap: wrap; }
         .language-group { flex: 1; min-width: 200px; }
-        select { padding: 12px; border-radius: 8px; border: 1px solid #ddd; font-size: 14px; width: 100%; }
-        .upload-area { border: 3px dashed #667eea; border-radius: 15px; padding: 40px; text-align: center; cursor: pointer; margin-bottom: 20px; background: #f8f9ff; }
-        .upload-area:hover { background: #eef0ff; }
+        select { padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-size: 14px; width: 100%; }
+        .upload-area { border: 3px dashed #667eea; border-radius: 15px; padding: 40px; text-align: center; cursor: pointer; margin-bottom: 20px; background: var(--result-bg); }
+        .upload-area:hover { background: var(--hover-bg); }
         input[type="file"] { display: none; }
-        .record-area { border: 3px dashed #667eea; border-radius: 15px; padding: 40px; text-align: center; margin-bottom: 20px; background: #f8f9ff; }
-        .record-area.recording { border-color: #ff4444; background: #fff0f0; }
+        .record-area { border: 3px dashed #667eea; border-radius: 15px; padding: 40px; text-align: center; margin-bottom: 20px; background: var(--result-bg); }
+        .record-area.recording { border-color: #ff4444; background: rgba(255,68,68,0.1); }
         .mic-btn { width: 80px; height: 80px; border-radius: 50%; border: none; background: #667eea; color: white; font-size: 35px; cursor: pointer; margin: 20px auto; display: flex; align-items: center; justify-content: center; }
         .mic-btn:hover { background: #764ba2; }
         .mic-btn.recording { background: #ff4444; }
         video { width: 100%; max-height: 300px; border-radius: 10px; margin: 10px 0; display: none; }
         video.show { display: block; }
-        .result-box { margin-top: 20px; padding: 20px; background: #f8f9ff; border-radius: 10px; display: none; }
+        .result-box { margin-top: 20px; padding: 20px; background: var(--result-bg); border-radius: 10px; display: none; }
         .result-box.show { display: block; }
         .result-item { margin: 15px 0; }
-        .result-label { font-weight: bold; color: #667eea; margin-bottom: 5px; }
-        .result-text { background: white; padding: 15px; border-radius: 8px; word-wrap: break-word; }
+        .result-label { font-weight: bold; color: #667eea; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; }
+        .result-text { background: var(--result-text-bg); color: var(--text); padding: 15px; border-radius: 8px; word-wrap: break-word; }
         .loading { display: none; text-align: center; padding: 20px; }
         .loading.show { display: block; }
-        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
+        .spinner { border: 4px solid var(--border); border-top: 4px solid #667eea; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .swap-btn { background: #f0f0f0; border: none; font-size: 20px; padding: 10px; border-radius: 50%; cursor: pointer; margin: 10px auto; display: block; }
-        .swap-btn:hover { background: #e0e0e0; }
+        .swap-btn { background: var(--hover-bg); color: var(--text); border: none; font-size: 20px; padding: 10px; border-radius: 50%; cursor: pointer; margin: 10px auto; display: block; }
+        .swap-btn:hover { background: var(--border); }
         .timer { font-size: 24px; font-weight: bold; color: #ff4444; margin: 10px 0; display: none; }
         .timer.show { display: block; }
-        .history-item { background: white; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #667eea; }
-        .history-item .source { color: #666; font-size: 14px; }
-        .history-item .translated { color: #333; font-weight: 500; margin-top: 5px; }
-        .history-item .meta { color: #999; font-size: 12px; margin-top: 5px; }
-        .delete-btn { background: #ff4444; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; float: right; font-size: 12px; }
+        .history-item, .favorite-item { background: var(--history-bg); padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #667eea; position: relative; color: var(--text); }
+        .favorite-item { border-left-color: #FFD700; }
+        .history-item .source, .favorite-item .source { color: var(--text-muted); font-size: 14px; }
+        .history-item .translated, .favorite-item .translated { color: var(--text); font-weight: 500; margin-top: 5px; }
+        .history-item .meta, .favorite-item .meta { color: var(--text-light); font-size: 12px; margin-top: 5px; }
+        .delete-btn { background: #ff4444; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; float: right; font-size: 12px; margin-left: 5px; }
         .clear-btn { background: #ff4444; color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; margin: 10px 5px; }
         .speak-btn { background: #4CAF50; color: white; padding: 12px 25px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; margin-top: 10px; }
         .speak-btn:hover { background: #388E3C; }
+        .download-btn { background: #2196F3; color: white; padding: 12px 25px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; margin-top: 10px; margin-left: 10px; }
+        .download-btn:hover { background: #1976D2; }
+        .favorite-btn { background: #FFD700; color: #333; padding: 12px 25px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; margin-top: 10px; margin-left: 10px; font-weight: 600; }
+        .favorite-btn:hover { background: #FFC700; }
+        .favorite-btn.active { background: #FFA500; }
+        .action-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
+        
+        /* Search Bar */
+        .search-bar { background: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 10px var(--shadow); }
+        .search-row { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+        .search-input { flex: 2; min-width: 200px; padding: 12px 15px; border: 2px solid var(--input-border); background: var(--input-bg); color: var(--text); border-radius: 8px; font-size: 15px; transition: border-color 0.3s; }
+        .search-input:focus { outline: none; border-color: #667eea; }
+        .search-select { flex: 1; min-width: 140px; padding: 12px; border: 2px solid var(--input-border); background: var(--input-bg); color: var(--text); border-radius: 8px; font-size: 14px; }
+        .search-select:focus { outline: none; border-color: #667eea; }
+        .search-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+        .search-btn { background: #667eea; color: white; padding: 12px 25px; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: 500; }
+        .search-btn:hover { background: #764ba2; }
+        .clear-search-btn { background: #999; color: white; padding: 12px 25px; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; }
+        .clear-search-btn:hover { background: #777; }
+        .results-count { color: #667eea; font-weight: 600; margin-bottom: 15px; padding: 10px; background: rgba(102,126,234,0.1); border-radius: 8px; text-align: center; }
+        
+        /* Stats */
+        .stats-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 25px; }
+        .stats-card { background: var(--result-bg); padding: 20px; border-radius: 12px; border-left: 4px solid #667eea; }
+        .stats-card.green { border-left-color: #4CAF50; }
+        .stats-card.orange { border-left-color: #ff9800; }
+        .stats-card.purple { border-left-color: #764ba2; }
+        .stats-card .stats-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .stats-card .stats-value { font-size: 28px; font-weight: bold; color: var(--text); }
+        .stats-section { background: var(--result-bg); padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+        .stats-section h3 { color: var(--text); font-size: 16px; margin-bottom: 15px; }
+        .stats-bar-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .stats-bar-label { font-size: 13px; color: var(--text); }
+        .stats-bar-count { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+        .stats-bar-outer { background: var(--border); height: 8px; border-radius: 4px; overflow: hidden; margin-top: 4px; margin-bottom: 12px; }
+        .stats-bar-inner { height: 100%; background: linear-gradient(90deg, #667eea, #764ba2); border-radius: 4px; transition: width 0.5s ease; }
+        .stats-empty { text-align: center; color: var(--text-light); padding: 30px; }
+        
+        .theme-toggle { background: var(--hover-bg); color: var(--text); border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 18px; margin-right: 10px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.3s; }
+        .theme-toggle:hover { background: var(--border); transform: rotate(20deg); }
+        .header-actions { display: flex; align-items: center; gap: 5px; }
+        
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center; }
         .modal.show { display: flex; }
-        .modal-content { background: white; padding: 30px; border-radius: 15px; max-width: 500px; width: 90%; }
+        .modal-content { background: var(--card-bg); color: var(--text); padding: 30px; border-radius: 15px; max-width: 500px; width: 90%; max-height: 85vh; overflow-y: auto; }
         .modal-content h3 { margin-bottom: 20px; }
-        .modal-content input { width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; margin-bottom: 15px; }
+        .modal-content input { width: 100%; padding: 10px; border: 2px solid var(--input-border); background: var(--input-bg); color: var(--text); border-radius: 8px; font-size: 14px; margin-bottom: 15px; }
         .modal-buttons { display: flex; gap: 10px; margin-top: 20px; }
         .modal-buttons .btn { flex: 1; padding: 10px; font-size: 14px; }
         .btn-secondary { background: #666; color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; }
+        .empty-state { text-align: center; padding: 30px; color: var(--text-light); }
         
-        /* MOBILE STYLES */
         @media (max-width: 768px) {
             body { padding: 10px; }
             .container, .main-app, .auth-container { padding: 20px; border-radius: 15px; }
             h1 { font-size: 22px !important; }
             .subtitle { font-size: 14px; margin-bottom: 20px; }
-            .profile-icon { width: 35px; height: 35px; font-size: 16px; }
+            .profile-icon, .theme-toggle { width: 35px; height: 35px; font-size: 16px; }
             .dropdown-menu { min-width: 180px; right: -5px; }
             .dropdown-item { padding: 10px 15px; font-size: 13px; }
             .tabs { gap: 5px; }
-            .tab { padding: 12px 10px; font-size: 13px; flex: 1; min-width: 45%; text-align: center; }
+            .tab { padding: 12px 8px; font-size: 12px; flex: 1; min-width: 30%; text-align: center; }
             .language-selector { flex-direction: column; gap: 10px; }
             .language-group { min-width: 100%; }
             select, input { padding: 14px 12px; font-size: 16px; }
@@ -111,10 +185,11 @@
             .upload-area p { font-size: 13px; }
             .result-text { padding: 12px; font-size: 14px; }
             .result-label { font-size: 13px; }
-            .speak-btn { width: 100%; padding: 15px; font-size: 16px; }
-            .history-item { padding: 12px; }
-            .history-item .source { font-size: 13px; }
-            .history-item .translated { font-size: 14px; }
+            .speak-btn, .download-btn, .favorite-btn { width: 100%; padding: 15px; font-size: 16px; margin-left: 0; margin-top: 10px; }
+            .action-buttons { flex-direction: column; gap: 8px; }
+            .history-item, .favorite-item { padding: 12px; }
+            .history-item .source, .favorite-item .source { font-size: 13px; }
+            .history-item .translated, .favorite-item .translated { font-size: 14px; }
             .modal-content { padding: 20px; }
             .modal-content h3 { font-size: 18px; }
             .modal-content input { padding: 12px; font-size: 15px; }
@@ -125,6 +200,16 @@
             .form-group { margin-bottom: 15px; }
             .error-message { font-size: 13px; }
             .clear-btn { padding: 12px 15px; font-size: 13px; }
+            .search-bar { padding: 15px; }
+            .search-row { flex-direction: column; gap: 8px; }
+            .search-input, .search-select { min-width: 100%; padding: 14px 12px; font-size: 15px; }
+            .search-actions { flex-direction: column; gap: 8px; }
+            .search-btn, .clear-search-btn { width: 100%; padding: 14px; font-size: 15px; }
+            .results-count { font-size: 14px; padding: 8px; }
+            .header-actions { gap: 3px; }
+            .stats-cards { grid-template-columns: 1fr 1fr; gap: 10px; }
+            .stats-card { padding: 15px; }
+            .stats-card .stats-value { font-size: 22px; }
         }
     </style>
 </head>
@@ -177,12 +262,17 @@
         <div class="header">
             <div></div>
             <h1>🌐 LingoLink AI</h1>
-            <div class="profile-container">
-                <button class="profile-icon" onclick="toggleDropdown()">👤</button>
-                <div class="dropdown-menu" id="dropdownMenu">
-                    <button class="dropdown-item" onclick="showEditProfile()">✏️ Edit Profile</button>
-                    <button class="dropdown-item" onclick="showSupport()">📞 Support</button>
-                    <button class="dropdown-item" onclick="logout()">🚪 Logout</button>
+            <div class="header-actions">
+                <button class="theme-toggle" onclick="toggleTheme()" id="appThemeBtn" title="Toggle theme">🌙</button>
+                <div class="profile-container">
+                    <button class="profile-icon" onclick="toggleDropdown()">👤</button>
+                    <div class="dropdown-menu" id="dropdownMenu">
+                        <button class="dropdown-item" onclick="showMyStats()">📈 My Stats</button>
+                        <button class="dropdown-item" onclick="showEditProfile()">✏️ Edit Profile</button>
+                        <button class="dropdown-item" onclick="toggleTheme()">🌓 Toggle Theme</button>
+                        <button class="dropdown-item" onclick="showSupport()">📞 Support</button>
+                        <button class="dropdown-item" onclick="logout()">🚪 Logout</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -193,6 +283,7 @@
             <button class="tab" onclick="switchTab('record')">🎤 Record</button>
             <button class="tab" onclick="switchTab('upload')">📁 Upload</button>
             <button class="tab" onclick="switchTab('history')">📜 History</button>
+            <button class="tab" onclick="switchTab('favorites')">⭐ Favorites</button>
         </div>
         
         <div class="tab-content active" id="translateTab">
@@ -223,8 +314,12 @@
                     <div class="result-text" id="translatedText"></div>
                 </div>
                 <div class="result-item">
-                    <div class="result-label">🔊 Audio Output</div>
-                    <button class="speak-btn" onclick="speakTranslated('translatedText', 'targetLang')">🔊 Play Audio</button>
+                    <div class="result-label">Actions</div>
+                    <div class="action-buttons">
+                        <button class="speak-btn" onclick="speakTranslated('translatedText', 'targetLang')">🔊 Play</button>
+                        <button class="favorite-btn" id="favBtnText" onclick="toggleFavoriteFromResult('text')">⭐ Favorite</button>
+                        <button class="download-btn" onclick="downloadText('translatedText')">📄 .txt</button>
+                    </div>
                 </div>
                 <div class="result-item">
                     <div class="result-label">⚡ Performance</div>
@@ -264,8 +359,12 @@
                     <div class="result-text" id="recordTranslatedText"></div>
                 </div>
                 <div class="result-item">
-                    <div class="result-label">🔊 Audio Output</div>
-                    <button class="speak-btn" onclick="speakTranslated('recordTranslatedText', 'targetLangRecord')">🔊 Play Audio</button>
+                    <div class="result-label">Actions</div>
+                    <div class="action-buttons">
+                        <button class="speak-btn" onclick="speakTranslated('recordTranslatedText', 'targetLangRecord')">🔊 Play</button>
+                        <button class="favorite-btn" onclick="toggleFavoriteFromResult('record')">⭐ Favorite</button>
+                        <button class="download-btn" onclick="downloadText('recordTranslatedText')">📄 .txt</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -311,21 +410,57 @@
                     <div class="result-text" id="uploadTranslatedText"></div>
                 </div>
                 <div class="result-item">
-                    <div class="result-label">🔊 Audio Output</div>
-                    <button class="speak-btn" onclick="speakTranslated('uploadTranslatedText', 'targetLangUpload')">🔊 Play Audio</button>
+                    <div class="result-label">Actions</div>
+                    <div class="action-buttons">
+                        <button class="speak-btn" onclick="speakTranslated('uploadTranslatedText', 'targetLangUpload')">🔊 Play</button>
+                        <button class="favorite-btn" onclick="toggleFavoriteFromResult('upload')">⭐ Favorite</button>
+                        <button class="download-btn" onclick="downloadText('uploadTranslatedText')">📄 .txt</button>
+                    </div>
                 </div>
             </div>
         </div>
         
         <div class="tab-content" id="historyTab">
-            <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
-                <button class="btn" onclick="loadHistory()" style="width:auto;">🔄 Refresh</button>
-                <button class="clear-btn" onclick="clearHistory()">🗑️ Clear All</button>
+            <div class="search-bar">
+                <div class="search-row">
+                    <input type="text" class="search-input" id="searchQuery" placeholder="🔍 Search text..." oninput="runSearch()">
+                    <select class="search-select" id="searchSourceLang" onchange="runSearch()"><option value="">All sources</option></select>
+                    <select class="search-select" id="searchTargetLang" onchange="runSearch()"><option value="">All targets</option></select>
+                </div>
+                <div class="search-row">
+                    <select class="search-select" id="searchDate" onchange="runSearch()">
+                        <option value="">All time</option>
+                        <option value="today">Today</option>
+                        <option value="week">Last 7 days</option>
+                        <option value="month">Last 30 days</option>
+                    </select>
+                    <select class="search-select" id="searchSort" onchange="runSearch()">
+                        <option value="newest">Newest first</option>
+                        <option value="oldest">Oldest first</option>
+                        <option value="az">A → Z</option>
+                        <option value="za">Z → A</option>
+                    </select>
+                </div>
+                <div class="search-actions">
+                    <button class="search-btn" onclick="runSearch()">🔍 Apply</button>
+                    <button class="clear-search-btn" onclick="clearSearch()">✖ Clear Filters</button>
+                    <button class="clear-btn" onclick="clearHistory()" style="margin: 0;">🗑️ Clear All History</button>
+                </div>
             </div>
+            <div class="results-count" id="resultsCount" style="display:none;"></div>
             <div id="historyList"></div>
+        </div>
+        
+        <div class="tab-content" id="favoritesTab">
+            <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+                <button class="btn" onclick="loadFavorites()" style="width:auto;">🔄 Refresh</button>
+                <button class="clear-btn" onclick="clearFavorites()">🗑️ Clear All Favorites</button>
+            </div>
+            <div id="favoritesList"></div>
         </div>
     </div>
     
+    <!-- Edit Profile Modal -->
     <div class="modal" id="editProfileModal">
         <div class="modal-content">
             <h3>✏️ Edit Profile</h3>
@@ -340,6 +475,18 @@
         </div>
     </div>
     
+    <!-- My Stats Modal -->
+    <div class="modal" id="myStatsModal">
+        <div class="modal-content" style="max-width:650px;">
+            <h3>📈 My Stats</h3>
+            <div id="myStatsContent">
+                <div class="stats-empty">Loading your stats...</div>
+            </div>
+            <button class="btn" onclick="closeMyStats()" style="margin-top:20px;">Close</button>
+        </div>
+    </div>
+    
+    <!-- Support Modal -->
     <div class="modal" id="supportModal">
         <div class="modal-content">
             <h3>📞 Call Center Support</h3>
@@ -351,10 +498,30 @@
     </div>
 
     <script>
-        const API_BASE = 'https://rover-determining-mazda-marketing.trycloudflare.com';
+        const API_BASE = 'https://relationships-off-pieces-logs.trycloudflare.com';
         
         let currentUser = JSON.parse(localStorage.getItem('lingolink_current_user') || 'null');
         let translationHistory = JSON.parse(localStorage.getItem('lingolink_history') || '[]');
+        let favorites = JSON.parse(localStorage.getItem('lingolink_favorites') || '[]');
+        
+        // ===== THEME =====
+        function initTheme() {
+            const saved = localStorage.getItem('lingolink_theme') || 'light';
+            if (saved === 'dark') { document.body.classList.add('dark'); updateThemeButtons('dark'); }
+            else { updateThemeButtons('light'); }
+        }
+        function toggleTheme() {
+            const isDark = document.body.classList.toggle('dark');
+            const theme = isDark ? 'dark' : 'light';
+            localStorage.setItem('lingolink_theme', theme);
+            updateThemeButtons(theme);
+        }
+        function updateThemeButtons(theme) {
+            document.querySelectorAll('.theme-toggle').forEach(btn => {
+                btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+            });
+        }
+        initTheme();
         
         const languages = [
             { code: 'aka_Latn', name: 'Akan', flag: '🇬🇭' },
@@ -413,6 +580,11 @@
             'kin_Latn': 'rw-RW'
         };
         
+        function getLangName(code) {
+            const l = languages.find(x => x.code === code);
+            return l ? `${l.flag} ${l.name}` : code;
+        }
+        
         let mediaRecorder = null;
         let audioChunks = [];
         let recordedBlob = null;
@@ -421,10 +593,10 @@
         let uploadedAudioFile = null;
         let uploadedVideoFile = null;
         
-        // SPEECH
+        // ===== SPEECH =====
         function speakText(text, langCode) {
-            if (!window.speechSynthesis) { alert('Browser does not support text-to-speech'); return; }
-            if (!text || !text.trim()) { alert('No text to speak'); return; }
+            if (!window.speechSynthesis) return;
+            if (!text || !text.trim()) return;
             window.speechSynthesis.cancel();
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = LANG_MAP[langCode] || 'en-US';
@@ -447,7 +619,324 @@
             window.speechSynthesis.getVoices();
         }
         
-        // AUTH
+        // ===== DOWNLOAD =====
+        function downloadText(elementId) {
+            const text = document.getElementById(elementId).textContent;
+            if (!text || !text.trim()) { alert('Nothing to download'); return; }
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `lingolink_translation_${Date.now()}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        // ===== MY STATS MODAL =====
+        function showMyStats() {
+            document.getElementById('dropdownMenu').classList.remove('show');
+            document.getElementById('myStatsModal').classList.add('show');
+            loadMyStats();
+        }
+        
+        function closeMyStats() {
+            document.getElementById('myStatsModal').classList.remove('show');
+        }
+        
+        function loadMyStats() {
+            const container = document.getElementById('myStatsContent');
+            
+            if (translationHistory.length === 0 && favorites.length === 0) {
+                container.innerHTML = '<div class="stats-empty">📈 No activity yet. Start translating to see your stats!</div>';
+                return;
+            }
+            
+            const totalTranslations = translationHistory.length;
+            const totalFavorites = favorites.length;
+            
+            const sourceCounts = {};
+            const targetCounts = {};
+            translationHistory.forEach(t => {
+                sourceCounts[t.source_lang] = (sourceCounts[t.source_lang] || 0) + 1;
+                targetCounts[t.target_lang] = (targetCounts[t.target_lang] || 0) + 1;
+            });
+            
+            const topSources = Object.entries(sourceCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+            const topTargets = Object.entries(targetCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+            
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const todayCount = translationHistory.filter(t => new Date(t.created_at) >= today).length;
+            
+            const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+            const weekCount = translationHistory.filter(t => new Date(t.created_at) >= weekAgo).length;
+            
+            const mostUsedTarget = topTargets.length > 0 ? topTargets[0] : null;
+            const maxSourceCount = topSources.length > 0 ? topSources[0][1] : 1;
+            const maxTargetCount = topTargets.length > 0 ? topTargets[0][1] : 1;
+            
+            container.innerHTML = `
+                <div class="stats-cards">
+                    <div class="stats-card">
+                        <div class="stats-label">Total Translations</div>
+                        <div class="stats-value">${totalTranslations}</div>
+                    </div>
+                    <div class="stats-card green">
+                        <div class="stats-label">Today</div>
+                        <div class="stats-value">${todayCount}</div>
+                    </div>
+                    <div class="stats-card orange">
+                        <div class="stats-label">This Week</div>
+                        <div class="stats-value">${weekCount}</div>
+                    </div>
+                    <div class="stats-card purple">
+                        <div class="stats-label">Favorites</div>
+                        <div class="stats-value">${totalFavorites}</div>
+                    </div>
+                </div>
+                
+                ${mostUsedTarget ? `
+                <div class="stats-section" style="background: linear-gradient(135deg, rgba(102,126,234,0.15), rgba(118,75,162,0.15)); text-align: center;">
+                    <div style="color: var(--text-muted); font-size: 13px; margin-bottom: 8px;">🎯 Most Translated To</div>
+                    <div style="font-size: 22px; font-weight: bold; color: var(--text);">${getLangName(mostUsedTarget[0])}</div>
+                    <div style="color: var(--text-muted); font-size: 13px; margin-top: 5px;">${mostUsedTarget[1]} translations</div>
+                </div>
+                ` : ''}
+                
+                <div class="stats-section">
+                    <h3>📤 Your Source Languages (Top 5)</h3>
+                    ${topSources.length === 0 ? '<div class="stats-empty">No data</div>' : topSources.map(([lang, count]) => `
+                        <div class="stats-bar-row">
+                            <span class="stats-bar-label">${getLangName(lang)}</span>
+                            <span class="stats-bar-count">${count}</span>
+                        </div>
+                        <div class="stats-bar-outer">
+                            <div class="stats-bar-inner" style="width: ${(count / maxSourceCount) * 100}%"></div>
+                        </div>
+                    `).join('')}
+                </div>
+                
+                <div class="stats-section">
+                    <h3>📥 Your Target Languages (Top 5)</h3>
+                    ${topTargets.length === 0 ? '<div class="stats-empty">No data</div>' : topTargets.map(([lang, count]) => `
+                        <div class="stats-bar-row">
+                            <span class="stats-bar-label">${getLangName(lang)}</span>
+                            <span class="stats-bar-count">${count}</span>
+                        </div>
+                        <div class="stats-bar-outer">
+                            <div class="stats-bar-inner" style="width: ${(count / maxTargetCount) * 100}%"></div>
+                        </div>
+                    `).join('')}
+                </div>
+                
+                ${translationHistory.length > 0 ? `
+                <div class="stats-section">
+                    <h3>🕐 Recent Activity</h3>
+                    ${translationHistory.slice(0, 5).map(t => `
+                        <div style="padding: 10px 0; border-bottom: 1px solid var(--border);">
+                            <div style="font-size: 13px; color: var(--text);">${t.source_text.substring(0, 60)}${t.source_text.length > 60 ? '...' : ''}</div>
+                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+                                ${getLangName(t.source_lang)} → ${getLangName(t.target_lang)} • ${new Date(t.created_at).toLocaleString()}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                ` : ''}
+            `;
+        }
+        
+        // ===== SEARCH =====
+        function initSearchFilters() {
+            const srcSel = document.getElementById('searchSourceLang');
+            const tgtSel = document.getElementById('searchTargetLang');
+            languages.forEach(l => {
+                srcSel.appendChild(new Option(`${l.flag} ${l.name}`, l.code));
+                tgtSel.appendChild(new Option(`${l.flag} ${l.name}`, l.code));
+            });
+        }
+        
+        function runSearch() {
+            const query = document.getElementById('searchQuery').value.trim().toLowerCase();
+            const srcLang = document.getElementById('searchSourceLang').value;
+            const tgtLang = document.getElementById('searchTargetLang').value;
+            const dateRange = document.getElementById('searchDate').value;
+            const sort = document.getElementById('searchSort').value;
+            
+            let results = [...translationHistory];
+            
+            if (query) results = results.filter(r => 
+                (r.source_text || '').toLowerCase().includes(query) ||
+                (r.translated_text || '').toLowerCase().includes(query));
+            if (srcLang) results = results.filter(r => r.source_lang === srcLang);
+            if (tgtLang) results = results.filter(r => r.target_lang === tgtLang);
+            
+            if (dateRange) {
+                const now = new Date();
+                let cutoff;
+                if (dateRange === 'today') cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                else if (dateRange === 'week') cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                else if (dateRange === 'month') cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                if (cutoff) results = results.filter(r => new Date(r.created_at) >= cutoff);
+            }
+            
+            if (sort === 'oldest') results.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+            else if (sort === 'az') results.sort((a, b) => (a.source_text || '').localeCompare(b.source_text || ''));
+            else if (sort === 'za') results.sort((a, b) => (b.source_text || '').localeCompare(a.source_text || ''));
+            else results.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            
+            renderHistoryList(results);
+        }
+        
+        function clearSearch() {
+            document.getElementById('searchQuery').value = '';
+            document.getElementById('searchSourceLang').value = '';
+            document.getElementById('searchTargetLang').value = '';
+            document.getElementById('searchDate').value = '';
+            document.getElementById('searchSort').value = 'newest';
+            runSearch();
+        }
+        
+        function renderHistoryList(results) {
+            const list = document.getElementById('historyList');
+            const countDiv = document.getElementById('resultsCount');
+            
+            const hasFilters = document.getElementById('searchQuery').value.trim() ||
+                              document.getElementById('searchSourceLang').value ||
+                              document.getElementById('searchTargetLang').value ||
+                              document.getElementById('searchDate').value;
+            
+            if (hasFilters) {
+                countDiv.textContent = `🔍 ${results.length} result${results.length !== 1 ? 's' : ''} found`;
+                countDiv.style.display = 'block';
+            } else {
+                countDiv.style.display = 'none';
+            }
+            
+            if (results.length === 0) {
+                list.innerHTML = '<div class="empty-state">' + 
+                    (hasFilters ? '🔍 No translations match your search' : 'No translation history yet') + '</div>';
+                return;
+            }
+            
+            list.innerHTML = results.map(record => `
+                <div class="history-item">
+                    <button class="delete-btn" onclick="deleteHistoryItem(${record.id})">Delete</button>
+                    <div class="source">${record.source_text}</div>
+                    <div class="translated">→ ${record.translated_text}</div>
+                    <div class="meta">${record.source_lang} → ${record.target_lang} | ${new Date(record.created_at).toLocaleString()}</div>
+                    <div class="action-buttons" style="margin-top:10px;">
+                        <button class="favorite-btn" style="font-size:12px; padding:8px 15px;" onclick="favoriteFromHistory(${record.id})">⭐ Favorite</button>
+                        <button class="download-btn" style="font-size:12px; padding:8px 15px;" onclick="downloadFromHistory(${record.id})">📄 .txt</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // ===== FAVORITES =====
+        function toggleFavoriteFromResult(context) {
+            let sourceText, translatedText, sourceLang, targetLang;
+            if (context === 'text') {
+                sourceText = document.getElementById('sourceText').textContent;
+                translatedText = document.getElementById('translatedText').textContent;
+                sourceLang = document.getElementById('sourceLang').value;
+                targetLang = document.getElementById('targetLang').value;
+            } else if (context === 'record') {
+                sourceText = document.getElementById('recordSourceText').textContent;
+                translatedText = document.getElementById('recordTranslatedText').textContent;
+                sourceLang = document.getElementById('sourceLangRecord').value;
+                targetLang = document.getElementById('targetLangRecord').value;
+            } else if (context === 'upload') {
+                sourceText = document.getElementById('uploadSourceText').textContent;
+                translatedText = document.getElementById('uploadTranslatedText').textContent;
+                sourceLang = document.getElementById('sourceLangUpload').value;
+                targetLang = document.getElementById('targetLangUpload').value;
+            }
+            if (!sourceText || !translatedText || translatedText === 'N/A') { alert('Nothing to favorite'); return; }
+            
+            const existing = favorites.find(f => f.source_text === sourceText && f.translated_text === translatedText && f.source_lang === sourceLang && f.target_lang === targetLang);
+            if (existing) {
+                favorites = favorites.filter(f => f.id !== existing.id);
+                localStorage.setItem('lingolink_favorites', JSON.stringify(favorites));
+                alert('⭐ Removed from favorites');
+            } else {
+                favorites.unshift({ id: Date.now(), source_text: sourceText, translated_text: translatedText, source_lang: sourceLang, target_lang: targetLang, created_at: new Date().toISOString() });
+                localStorage.setItem('lingolink_favorites', JSON.stringify(favorites));
+                alert('⭐ Added to favorites!');
+            }
+            updateFavButton(context);
+        }
+        
+        function updateFavButton(context) {
+            let btn = null, sourceText, translatedText, sourceLang, targetLang;
+            if (context === 'text') {
+                btn = document.getElementById('favBtnText');
+                sourceText = document.getElementById('sourceText').textContent;
+                translatedText = document.getElementById('translatedText').textContent;
+                sourceLang = document.getElementById('sourceLang').value;
+                targetLang = document.getElementById('targetLang').value;
+            }
+            if (!btn) return;
+            const isFav = favorites.some(f => f.source_text === sourceText && f.translated_text === translatedText && f.source_lang === sourceLang && f.target_lang === targetLang);
+            btn.textContent = isFav ? '⭐ Favorited' : '⭐ Favorite';
+            btn.classList.toggle('active', isFav);
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function loadFavorites() {
+            const list = document.getElementById('favoritesList');
+            if (favorites.length === 0) {
+                list.innerHTML = '<div class="empty-state">⭐ No favorites yet. Tap the star button on any translation to save it here.</div>';
+                return;
+            }
+            list.innerHTML = favorites.map(fav => `
+                <div class="favorite-item">
+                    <button class="delete-btn" onclick="removeFavorite(${fav.id})">Remove</button>
+                    <div class="source">${fav.source_text}</div>
+                    <div class="translated">→ ${fav.translated_text}</div>
+                    <div class="meta">${fav.source_lang} → ${fav.target_lang} | ${new Date(fav.created_at).toLocaleString()}</div>
+                    <div class="action-buttons" style="margin-top:10px;">
+                        <button class="speak-btn" style="font-size:12px; padding:8px 15px;" onclick="speakText('${escapeHtml(fav.translated_text).replace(/'/g, "\\'")}', '${fav.target_lang}')">🔊 Play</button>
+                        <button class="download-btn" style="font-size:12px; padding:8px 15px;" onclick="downloadFromFav(${fav.id})">📄 .txt</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function downloadFromFav(id) {
+            const fav = favorites.find(f => f.id === id);
+            if (!fav) return;
+            const content = `LingoLink AI - Favorite Translation\n${'='.repeat(40)}\n\nFrom: ${fav.source_lang}\nTo: ${fav.target_lang}\nDate: ${new Date(fav.created_at).toLocaleString()}\n\nSource Text:\n${fav.source_text}\n\nTranslation:\n${fav.translated_text}\n`;
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `lingolink_favorite_${id}.txt`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        function removeFavorite(id) {
+            if (!confirm('Remove from favorites?')) return;
+            favorites = favorites.filter(f => f.id !== id);
+            localStorage.setItem('lingolink_favorites', JSON.stringify(favorites));
+            loadFavorites();
+        }
+        
+        function clearFavorites() {
+            if (!confirm('Clear ALL favorites?')) return;
+            favorites = [];
+            localStorage.setItem('lingolink_favorites', JSON.stringify(favorites));
+            loadFavorites();
+        }
+        
+        // ===== AUTH =====
         function switchAuthTab(tab) {
             document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
             if (tab === 'login') {
@@ -469,47 +958,27 @@
             const errorDiv = document.getElementById('signupError');
             const successDiv = document.getElementById('signupSuccess');
             const btn = document.getElementById('signupBtn');
+            errorDiv.classList.remove('show'); successDiv.classList.remove('show');
             
-            errorDiv.classList.remove('show');
-            successDiv.classList.remove('show');
+            if (!name || !email || !password || !confirmPassword) { errorDiv.textContent = 'Please fill in all fields'; errorDiv.classList.add('show'); return; }
+            if (password.length < 6) { errorDiv.textContent = 'Password must be at least 6 characters'; errorDiv.classList.add('show'); return; }
+            if (password !== confirmPassword) { errorDiv.textContent = 'Passwords do not match'; errorDiv.classList.add('show'); return; }
             
-            if (!name || !email || !password || !confirmPassword) {
-                errorDiv.textContent = 'Please fill in all fields';
-                errorDiv.classList.add('show');
-                return;
-            }
-            if (password.length < 6) {
-                errorDiv.textContent = 'Password must be at least 6 characters';
-                errorDiv.classList.add('show');
-                return;
-            }
-            if (password !== confirmPassword) {
-                errorDiv.textContent = 'Passwords do not match';
-                errorDiv.classList.add('show');
-                return;
-            }
-            
-            btn.disabled = true;
-            btn.textContent = 'Creating account...';
-            
+            btn.disabled = true; btn.textContent = 'Creating account...';
             try {
                 const response = await fetch(API_BASE + '/auth/signup/', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name, email, password })
                 });
                 const data = await response.json();
                 if (!response.ok) throw new Error(data.detail || 'Signup failed');
-                successDiv.textContent = '✅ Account created!';
-                successDiv.classList.add('show');
+                successDiv.textContent = '✅ Account created!'; successDiv.classList.add('show');
                 currentUser = data.user;
                 localStorage.setItem('lingolink_current_user', JSON.stringify(data.user));
                 setTimeout(() => showMainApp(data.user), 800);
             } catch (error) {
-                errorDiv.textContent = error.message;
-                errorDiv.classList.add('show');
-                btn.disabled = false;
-                btn.textContent = 'Sign Up';
+                errorDiv.textContent = error.message; errorDiv.classList.add('show');
+                btn.disabled = false; btn.textContent = 'Sign Up';
             }
         }
         
@@ -518,21 +987,12 @@
             const password = document.getElementById('loginPassword').value;
             const errorDiv = document.getElementById('loginError');
             const btn = document.getElementById('loginBtn');
-            
             errorDiv.classList.remove('show');
-            if (!email || !password) {
-                errorDiv.textContent = 'Please enter email and password';
-                errorDiv.classList.add('show');
-                return;
-            }
-            
-            btn.disabled = true;
-            btn.textContent = 'Logging in...';
-            
+            if (!email || !password) { errorDiv.textContent = 'Please enter email and password'; errorDiv.classList.add('show'); return; }
+            btn.disabled = true; btn.textContent = 'Logging in...';
             try {
                 const response = await fetch(API_BASE + '/auth/login/', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password })
                 });
                 const data = await response.json();
@@ -541,10 +1001,8 @@
                 localStorage.setItem('lingolink_current_user', JSON.stringify(data.user));
                 showMainApp(data.user);
             } catch (error) {
-                errorDiv.textContent = error.message;
-                errorDiv.classList.add('show');
-                btn.disabled = false;
-                btn.textContent = 'Login';
+                errorDiv.textContent = error.message; errorDiv.classList.add('show');
+                btn.disabled = false; btn.textContent = 'Login';
             }
         }
         
@@ -560,17 +1018,13 @@
             document.getElementById('mainApp').classList.add('show');
             document.getElementById('userName').textContent = user.name;
             populateAllLanguageSelects();
+            initSearchFilters();
         }
         
-        // PROFILE
-        function toggleDropdown() {
-            document.getElementById('dropdownMenu').classList.toggle('show');
-        }
-        
+        // ===== PROFILE =====
+        function toggleDropdown() { document.getElementById('dropdownMenu').classList.toggle('show'); }
         document.addEventListener('click', function(e) {
-            if (!e.target.closest('.profile-container')) {
-                document.getElementById('dropdownMenu').classList.remove('show');
-            }
+            if (!e.target.closest('.profile-container')) document.getElementById('dropdownMenu').classList.remove('show');
         });
         
         function showEditProfile() {
@@ -582,33 +1036,19 @@
             document.getElementById('editProfileModal').classList.add('show');
         }
         
-        function closeEditProfile() {
-            document.getElementById('editProfileModal').classList.remove('show');
-        }
+        function closeEditProfile() { document.getElementById('editProfileModal').classList.remove('show'); }
         
         async function saveProfile() {
             const newName = document.getElementById('editName').value.trim();
             const newEmail = document.getElementById('editEmail').value.trim();
             const newPassword = document.getElementById('editPassword').value;
             const errorDiv = document.getElementById('editError');
-            
             errorDiv.classList.remove('show');
-            if (!newName || !newEmail) {
-                errorDiv.textContent = 'Name and email are required';
-                errorDiv.classList.add('show');
-                return;
-            }
-            
+            if (!newName || !newEmail) { errorDiv.textContent = 'Name and email are required'; errorDiv.classList.add('show'); return; }
             try {
                 const response = await fetch(API_BASE + '/auth/update/', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        email: currentUser.email,
-                        new_name: newName,
-                        new_email: newEmail,
-                        new_password: newPassword || null
-                    })
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: currentUser.email, new_name: newName, new_email: newEmail, new_password: newPassword || null })
                 });
                 const data = await response.json();
                 if (!response.ok) throw new Error(data.detail || 'Update failed');
@@ -618,62 +1058,48 @@
                 closeEditProfile();
                 alert('✅ Profile updated!');
             } catch (error) {
-                errorDiv.textContent = error.message;
-                errorDiv.classList.add('show');
+                errorDiv.textContent = error.message; errorDiv.classList.add('show');
             }
         }
         
-        function showSupport() {
-            document.getElementById('dropdownMenu').classList.remove('show');
-            document.getElementById('supportModal').classList.add('show');
-        }
+        function showSupport() { document.getElementById('dropdownMenu').classList.remove('show'); document.getElementById('supportModal').classList.add('show'); }
+        function closeSupport() { document.getElementById('supportModal').classList.remove('show'); }
         
-        function closeSupport() {
-            document.getElementById('supportModal').classList.remove('show');
-        }
-        
-        // TABS
+        // ===== TABS =====
         function switchTab(tab) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             
-            if (tab === 'translate') {
-                document.querySelector('.tab:nth-child(1)').classList.add('active');
-                document.getElementById('translateTab').classList.add('active');
-            } else if (tab === 'record') {
-                document.querySelector('.tab:nth-child(2)').classList.add('active');
-                document.getElementById('recordTab').classList.add('active');
-            } else if (tab === 'upload') {
-                document.querySelector('.tab:nth-child(3)').classList.add('active');
-                document.getElementById('uploadTab').classList.add('active');
-            } else {
-                document.querySelector('.tab:nth-child(4)').classList.add('active');
-                document.getElementById('historyTab').classList.add('active');
-                loadHistory();
+            const tabMap = {
+                'translate': { idx: 1, id: 'translateTab' },
+                'record': { idx: 2, id: 'recordTab' },
+                'upload': { idx: 3, id: 'uploadTab' },
+                'history': { idx: 4, id: 'historyTab' },
+                'favorites': { idx: 5, id: 'favoritesTab' }
+            };
+            const t = tabMap[tab];
+            if (t) {
+                document.querySelector(`.tab:nth-child(${t.idx})`).classList.add('active');
+                document.getElementById(t.id).classList.add('active');
+                if (tab === 'history') clearSearch();
+                if (tab === 'favorites') loadFavorites();
             }
         }
         
         function swapLanguages() {
             const s = document.getElementById('sourceLang');
             const t = document.getElementById('targetLang');
-            const temp = s.value;
-            s.value = t.value;
-            t.value = temp;
+            const temp = s.value; s.value = t.value; t.value = temp;
         }
         
         function populateAllLanguageSelects() {
             const selects = [
-                document.getElementById('sourceLang'),
-                document.getElementById('targetLang'),
-                document.getElementById('sourceLangRecord'),
-                document.getElementById('targetLangRecord'),
-                document.getElementById('sourceLangUpload'),
-                document.getElementById('targetLangUpload')
+                document.getElementById('sourceLang'), document.getElementById('targetLang'),
+                document.getElementById('sourceLangRecord'), document.getElementById('targetLangRecord'),
+                document.getElementById('sourceLangUpload'), document.getElementById('targetLangUpload')
             ];
             selects.forEach(select => {
-                languages.forEach(lang => {
-                    select.appendChild(new Option(`${lang.flag} ${lang.name}`, lang.code));
-                });
+                languages.forEach(lang => select.appendChild(new Option(`${lang.flag} ${lang.name}`, lang.code)));
             });
             document.getElementById('sourceLang').value = 'eng_Latn';
             document.getElementById('targetLang').value = 'swh_Latn';
@@ -683,7 +1109,7 @@
             document.getElementById('targetLangUpload').value = 'swh_Latn';
         }
         
-        // RECORDING
+        // ===== RECORDING =====
         async function toggleRecording() {
             if (mediaRecorder && mediaRecorder.state === 'recording') stopRecording();
             else startRecording();
@@ -713,9 +1139,7 @@
                     const s = seconds % 60;
                     document.getElementById('timer').textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
                 }, 1000);
-            } catch (error) {
-                alert('Error accessing microphone: ' + error.message);
-            }
+            } catch (error) { alert('Microphone error: ' + error.message); }
         }
         
         function stopRecording() {
@@ -754,15 +1178,10 @@
             }
         }
         
-        // UPLOAD
+        // ===== UPLOAD =====
         function handleAudioUpload(file) {
-            if (file) {
-                uploadedAudioFile = file;
-                document.getElementById('audioFileName').textContent = `📎 ${file.name}`;
-                checkUploadReady();
-            }
+            if (file) { uploadedAudioFile = file; document.getElementById('audioFileName').textContent = `📎 ${file.name}`; checkUploadReady(); }
         }
-        
         function handleVideoUpload(file) {
             if (file) {
                 uploadedVideoFile = file;
@@ -773,10 +1192,7 @@
                 checkUploadReady();
             }
         }
-        
-        function checkUploadReady() {
-            document.getElementById('uploadTranslateBtn').disabled = !(uploadedAudioFile || uploadedVideoFile);
-        }
+        function checkUploadReady() { document.getElementById('uploadTranslateBtn').disabled = !(uploadedAudioFile || uploadedVideoFile); }
         
         async function translateUploadedMedia() {
             const sourceLang = document.getElementById('sourceLangUpload').value;
@@ -803,7 +1219,7 @@
             }
         }
         
-        // TEXT TRANSLATION
+        // ===== TEXT TRANSLATION =====
         async function translateText() {
             const text = document.getElementById('inputText').value.trim();
             if (!text) { alert('Please enter text to translate'); return; }
@@ -814,8 +1230,7 @@
             document.getElementById('translateBtn').disabled = true;
             try {
                 const response = await fetch(API_BASE + '/translate_text/', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text, source_lang: sourceLang, target_lang: targetLang })
                 });
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -824,17 +1239,14 @@
                 document.getElementById('translatedText').textContent = data.translated_text;
                 document.getElementById('latency').textContent = `Processing time: ${data.latency_seconds} seconds`;
                 translationHistory.unshift({
-                    id: Date.now(),
-                    source_text: data.source_text,
-                    translated_text: data.translated_text,
-                    source_lang: sourceLang,
-                    target_lang: targetLang,
-                    created_at: new Date().toISOString()
+                    id: Date.now(), source_text: data.source_text, translated_text: data.translated_text,
+                    source_lang: sourceLang, target_lang: targetLang, created_at: new Date().toISOString()
                 });
                 localStorage.setItem('lingolink_history', JSON.stringify(translationHistory));
                 document.getElementById('loadingTranslate').classList.remove('show');
                 document.getElementById('resultBox').classList.add('show');
                 document.getElementById('translateBtn').disabled = false;
+                updateFavButton('text');
             } catch (error) {
                 document.getElementById('loadingTranslate').classList.remove('show');
                 document.getElementById('translateBtn').disabled = false;
@@ -842,35 +1254,50 @@
             }
         }
         
-        // HISTORY
-        function loadHistory() {
-            const historyList = document.getElementById('historyList');
-            if (translationHistory.length === 0) {
-                historyList.innerHTML = '<p style="text-align:center;color:#666;">No translation history yet</p>';
-                return;
+        // ===== HISTORY =====
+        function loadHistory() { runSearch(); }
+        
+        function favoriteFromHistory(id) {
+            const record = translationHistory.find(r => r.id === id);
+            if (!record) return;
+            const existing = favorites.find(f => f.source_text === record.source_text && f.translated_text === record.translated_text);
+            if (existing) {
+                favorites = favorites.filter(f => f.id !== existing.id);
+                localStorage.setItem('lingolink_favorites', JSON.stringify(favorites));
+                alert('⭐ Removed from favorites');
+            } else {
+                favorites.unshift({ id: Date.now(), source_text: record.source_text, translated_text: record.translated_text, source_lang: record.source_lang, target_lang: record.target_lang, created_at: new Date().toISOString() });
+                localStorage.setItem('lingolink_favorites', JSON.stringify(favorites));
+                alert('⭐ Added to favorites!');
             }
-            historyList.innerHTML = translationHistory.map(record => `
-                <div class="history-item">
-                    <button class="delete-btn" onclick="deleteHistoryItem(${record.id})">Delete</button>
-                    <div class="source">${record.source_text}</div>
-                    <div class="translated">→ ${record.translated_text}</div>
-                    <div class="meta">${record.source_lang} → ${record.target_lang}</div>
-                </div>
-            `).join('');
+        }
+        
+        function downloadFromHistory(id) {
+            const record = translationHistory.find(r => r.id === id);
+            if (!record) return;
+            const content = `LingoLink AI Translation\n${'='.repeat(40)}\n\nFrom: ${record.source_lang}\nTo: ${record.target_lang}\nDate: ${new Date(record.created_at).toLocaleString()}\n\nSource Text:\n${record.source_text}\n\nTranslation:\n${record.translated_text}\n`;
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `lingolink_translation_${id}.txt`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
         
         function deleteHistoryItem(id) {
             if (!confirm('Delete this translation?')) return;
             translationHistory = translationHistory.filter(item => item.id !== id);
             localStorage.setItem('lingolink_history', JSON.stringify(translationHistory));
-            loadHistory();
+            runSearch();
         }
         
         function clearHistory() {
             if (!confirm('Clear ALL translation history?')) return;
             translationHistory = [];
             localStorage.setItem('lingolink_history', JSON.stringify(translationHistory));
-            loadHistory();
+            clearSearch();
+            runSearch();
         }
         
         if (currentUser) showMainApp(currentUser);

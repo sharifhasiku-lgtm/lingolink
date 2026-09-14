@@ -10,6 +10,7 @@ import time
 import edge_tts
 import os
 import hashlib
+from datetime import datetime, timedelta
 from pydantic import BaseModel
 from typing import Optional
 
@@ -90,7 +91,7 @@ def verify_admin(authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=401, detail="Invalid admin credentials")
     return True
 
-# Request models
+# ===== REQUEST MODELS =====
 class SignupRequest(BaseModel):
     name: str
     email: str
@@ -123,19 +124,15 @@ async def root():
 
 @app.post("/auth/signup/")
 async def signup(request: SignupRequest, db: Session = Depends(get_db)):
-    # Validate
     if not request.name.strip() or not request.email.strip() or not request.password:
         raise HTTPException(status_code=400, detail="All fields are required")
-    
     if len(request.password) < 6:
         raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
     
-    # Check if email exists
     existing = db.query(User).filter(User.email == request.email.lower().strip()).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    # Create user
     user = User(
         name=request.name.strip(),
         email=request.email.lower().strip(),
@@ -147,11 +144,7 @@ async def signup(request: SignupRequest, db: Session = Depends(get_db)):
     
     return {
         "success": True,
-        "user": {
-            "id": user.id,
-            "name": user.name,
-            "email": user.email
-        },
+        "user": {"id": user.id, "name": user.name, "email": user.email},
         "message": "Account created successfully"
     }
 
@@ -161,24 +154,18 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Email and password required")
     
     user = db.query(User).filter(User.email == request.email.lower().strip()).first()
-    
     if not user or user.password != hash_password(request.password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     
     return {
         "success": True,
-        "user": {
-            "id": user.id,
-            "name": user.name,
-            "email": user.email
-        },
+        "user": {"id": user.id, "name": user.name, "email": user.email},
         "message": "Login successful"
     }
 
 @app.post("/auth/update/")
 async def update_profile(request: UpdateProfileRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == request.email.lower().strip()).first()
-    
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
@@ -186,7 +173,6 @@ async def update_profile(request: UpdateProfileRequest, db: Session = Depends(ge
         user.name = request.new_name.strip()
     
     if request.new_email and request.new_email.lower().strip() != user.email:
-        # Check if new email is taken
         existing = db.query(User).filter(User.email == request.new_email.lower().strip()).first()
         if existing:
             raise HTTPException(status_code=400, detail="Email already in use")
@@ -202,11 +188,7 @@ async def update_profile(request: UpdateProfileRequest, db: Session = Depends(ge
     
     return {
         "success": True,
-        "user": {
-            "id": user.id,
-            "name": user.name,
-            "email": user.email
-        },
+        "user": {"id": user.id, "name": user.name, "email": user.email},
         "message": "Profile updated"
     }
 
@@ -232,7 +214,6 @@ async def admin_stats(admin: bool = Depends(verify_admin), db: Session = Depends
         TranslationRecord.target_lang
     ).order_by(func.count(TranslationRecord.id).desc()).limit(10).all()
     
-    from datetime import datetime, timedelta
     last_24h = db.query(TranslationRecord).filter(
         TranslationRecord.created_at >= datetime.utcnow() - timedelta(hours=24)
     ).count()
@@ -241,11 +222,26 @@ async def admin_stats(admin: bool = Depends(verify_admin), db: Session = Depends
         TranslationRecord.created_at >= datetime.utcnow() - timedelta(days=7)
     ).count()
     
+    # Daily counts for the last 7 days
+    daily_counts = []
+    for i in range(6, -1, -1):
+        day_start = (datetime.utcnow() - timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = day_start + timedelta(days=1)
+        count = db.query(TranslationRecord).filter(
+            TranslationRecord.created_at >= day_start,
+            TranslationRecord.created_at < day_end
+        ).count()
+        daily_counts.append({
+            "date": day_start.strftime("%Y-%m-%d"),
+            "count": count
+        })
+    
     return {
         "total_translations": total_translations,
         "total_users": total_users,
         "last_24h": last_24h,
         "last_7d": last_7d,
+        "daily_counts": daily_counts,
         "top_language_pairs": [
             {"source": p[0], "target": p[1], "count": p[2]}
             for p in lang_pairs

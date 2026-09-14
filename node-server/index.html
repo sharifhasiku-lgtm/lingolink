@@ -33,6 +33,7 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+            cursor: pointer;
         }
         .nav-links {
             display: flex; gap: 30px; align-items: center;
@@ -260,7 +261,7 @@
             opacity: 1; transform: translateY(0);
         }
         
-        /* MOBILE STYLES */
+        /* MOBILE */
         @media (max-width: 768px) {
             .nav-links { display: none; }
             .nav-container { padding: 0 15px; }
@@ -315,12 +316,12 @@
     <!-- Navbar -->
     <nav class="navbar">
         <div class="nav-container">
-            <div class="logo">🌐 LingoLink AI</div>
+            <div class="logo" onclick="goToLogin()">🌐 LingoLink AI</div>
             <div class="nav-links">
                 <a href="#features">Features</a>
                 <a href="#languages">Languages</a>
                 <a href="#how">How It Works</a>
-                <a href="translator.html" class="nav-cta">Get Started</a>
+                <a href="javascript:void(0)" onclick="goToLogin()" class="nav-cta">Get Started</a>
             </div>
         </div>
     </nav>
@@ -332,7 +333,7 @@
             <h1>Break Language Barriers with <span>AI Translation</span></h1>
             <p>Translate text, audio, and video across 40+ African and international languages. Instantly. Accurately. Freely.</p>
             <div class="hero-buttons">
-                <a href="translator.html" class="btn-primary">🚀 Start Translating Free</a>
+                <a href="javascript:void(0)" onclick="goToLogin()" class="btn-primary">🚀 Start Translating Free</a>
                 <a href="#features" class="btn-secondary">Learn More</a>
             </div>
             
@@ -448,8 +449,8 @@
         <div class="steps">
             <div class="step fade-in">
                 <div class="step-number">1</div>
-                <h3>Choose Input</h3>
-                <p>Type text, record audio, or upload a media file.</p>
+                <h3>Sign Up Free</h3>
+                <p>Create your account in seconds — no credit card required.</p>
             </div>
             <div class="step fade-in">
                 <div class="step-number">2</div>
@@ -469,7 +470,7 @@
         <div class="fade-in">
             <h2>Ready to Break Language Barriers?</h2>
             <p>Join users translating across Africa and the world. No credit card. No limits.</p>
-            <a href="translator.html" class="btn-primary">🚀 Get Started Now</a>
+            <a href="javascript:void(0)" onclick="goToLogin()" class="btn-primary">🚀 Get Started Now</a>
         </div>
     </section>
     
@@ -481,7 +482,7 @@
                 <a href="#features">Features</a>
                 <a href="#languages">Languages</a>
                 <a href="#how">How It Works</a>
-                <a href="translator.html">Translator</a>
+                <a href="javascript:void(0)" onclick="goToLogin()">Translator</a>
                 <a href="admin.html">Admin</a>
             </div>
             <div class="footer-copyright">
@@ -491,6 +492,12 @@
     </footer>
     
     <script>
+        // Redirect to translator (which shows login/signup first)
+        function goToLogin() {
+            window.location.href = 'translator.html';
+        }
+        
+        // Scroll animations
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
@@ -501,6 +508,7 @@
         
         document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
         
+        // Smooth scroll for anchor links
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function (e) {
                 e.preventDefault();

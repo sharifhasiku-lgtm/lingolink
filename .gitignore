@@ -28,3 +28,6 @@ Thumbs.db
 
 # Node
 node_modules/
+# Tunnel logs and temp files
+*_tunnel.log
+current_urls.txt
