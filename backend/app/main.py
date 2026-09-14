@@ -32,7 +32,7 @@ os.makedirs("data/audio", exist_ok=True)
 app.mount("/data/audio", StaticFiles(directory="data/audio"), name="audio")
 
 ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD = "lingolink2026"
+ADMIN_PASSWORD = "lingolink256"
 
 translation_tokenizer = None
 translation_model = None
