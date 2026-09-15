@@ -35,7 +35,6 @@
             --hover-bg: #3a3a4e;
             --shadow: rgba(0,0,0,0.6);
         }
-        
         * { margin: 0; padding: 0; box-sizing: border-box; transition: background-color 0.3s, color 0.3s, border-color 0.3s; }
         body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg-gradient); min-height: 100vh; padding: 20px; display: flex; justify-content: center; align-items: center; color: var(--text); }
         .auth-container { background: var(--card-bg); border-radius: 20px; padding: 40px; box-shadow: 0 20px 60px var(--shadow); width: 100%; max-width: 400px; }
@@ -116,8 +115,6 @@
         .favorite-btn:hover { background: #FFC700; }
         .favorite-btn.active { background: #FFA500; }
         .action-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
-        
-        /* Search Bar */
         .search-bar { background: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 10px var(--shadow); }
         .search-row { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
         .search-input { flex: 2; min-width: 200px; padding: 12px 15px; border: 2px solid var(--input-border); background: var(--input-bg); color: var(--text); border-radius: 8px; font-size: 15px; transition: border-color 0.3s; }
@@ -130,8 +127,6 @@
         .clear-search-btn { background: #999; color: white; padding: 12px 25px; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; }
         .clear-search-btn:hover { background: #777; }
         .results-count { color: #667eea; font-weight: 600; margin-bottom: 15px; padding: 10px; background: rgba(102,126,234,0.1); border-radius: 8px; text-align: center; }
-        
-        /* Stats */
         .stats-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 25px; }
         .stats-card { background: var(--result-bg); padding: 20px; border-radius: 12px; border-left: 4px solid #667eea; }
         .stats-card.green { border-left-color: #4CAF50; }
@@ -147,11 +142,9 @@
         .stats-bar-outer { background: var(--border); height: 8px; border-radius: 4px; overflow: hidden; margin-top: 4px; margin-bottom: 12px; }
         .stats-bar-inner { height: 100%; background: linear-gradient(90deg, #667eea, #764ba2); border-radius: 4px; transition: width 0.5s ease; }
         .stats-empty { text-align: center; color: var(--text-light); padding: 30px; }
-        
         .theme-toggle { background: var(--hover-bg); color: var(--text); border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 18px; margin-right: 10px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.3s; }
         .theme-toggle:hover { background: var(--border); transform: rotate(20deg); }
         .header-actions { display: flex; align-items: center; gap: 5px; }
-        
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center; }
         .modal.show { display: flex; }
         .modal-content { background: var(--card-bg); color: var(--text); padding: 30px; border-radius: 15px; max-width: 500px; width: 90%; max-height: 85vh; overflow-y: auto; }
@@ -161,7 +154,6 @@
         .modal-buttons .btn { flex: 1; padding: 10px; font-size: 14px; }
         .btn-secondary { background: #666; color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; }
         .empty-state { text-align: center; padding: 30px; color: var(--text-light); }
-        
         @media (max-width: 768px) {
             body { padding: 10px; }
             .container, .main-app, .auth-container { padding: 20px; border-radius: 15px; }
@@ -188,25 +180,10 @@
             .speak-btn, .download-btn, .favorite-btn { width: 100%; padding: 15px; font-size: 16px; margin-left: 0; margin-top: 10px; }
             .action-buttons { flex-direction: column; gap: 8px; }
             .history-item, .favorite-item { padding: 12px; }
-            .history-item .source, .favorite-item .source { font-size: 13px; }
-            .history-item .translated, .favorite-item .translated { font-size: 14px; }
             .modal-content { padding: 20px; }
-            .modal-content h3 { font-size: 18px; }
-            .modal-content input { padding: 12px; font-size: 15px; }
             .modal-buttons { flex-direction: column; }
             .modal-buttons .btn { width: 100%; padding: 14px; }
             .auth-header h1 { font-size: 24px; }
-            .auth-header p { font-size: 13px; }
-            .form-group { margin-bottom: 15px; }
-            .error-message { font-size: 13px; }
-            .clear-btn { padding: 12px 15px; font-size: 13px; }
-            .search-bar { padding: 15px; }
-            .search-row { flex-direction: column; gap: 8px; }
-            .search-input, .search-select { min-width: 100%; padding: 14px 12px; font-size: 15px; }
-            .search-actions { flex-direction: column; gap: 8px; }
-            .search-btn, .clear-search-btn { width: 100%; padding: 14px; font-size: 15px; }
-            .results-count { font-size: 14px; padding: 8px; }
-            .header-actions { gap: 3px; }
             .stats-cards { grid-template-columns: 1fr 1fr; gap: 10px; }
             .stats-card { padding: 15px; }
             .stats-card .stats-value { font-size: 22px; }
@@ -277,7 +254,6 @@
             </div>
         </div>
         <p class="subtitle">Welcome, <span id="userName">User</span>!</p>
-        
         <div class="tabs">
             <button class="tab active" onclick="switchTab('translate')">🔄 Text</button>
             <button class="tab" onclick="switchTab('record')">🎤 Record</button>
@@ -285,7 +261,6 @@
             <button class="tab" onclick="switchTab('history')">📜 History</button>
             <button class="tab" onclick="switchTab('favorites')">⭐ Favorites</button>
         </div>
-        
         <div class="tab-content active" id="translateTab">
             <div class="language-selector">
                 <div class="language-group">
@@ -327,7 +302,6 @@
                 </div>
             </div>
         </div>
-        
         <div class="tab-content" id="recordTab">
             <div class="language-selector">
                 <div class="language-group">
@@ -368,7 +342,6 @@
                 </div>
             </div>
         </div>
-        
         <div class="tab-content" id="uploadTab">
             <div class="language-selector">
                 <div class="language-group">
@@ -419,7 +392,6 @@
                 </div>
             </div>
         </div>
-        
         <div class="tab-content" id="historyTab">
             <div class="search-bar">
                 <div class="search-row">
@@ -450,7 +422,6 @@
             <div class="results-count" id="resultsCount" style="display:none;"></div>
             <div id="historyList"></div>
         </div>
-        
         <div class="tab-content" id="favoritesTab">
             <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
                 <button class="btn" onclick="loadFavorites()" style="width:auto;">🔄 Refresh</button>
@@ -460,7 +431,6 @@
         </div>
     </div>
     
-    <!-- Edit Profile Modal -->
     <div class="modal" id="editProfileModal">
         <div class="modal-content">
             <h3>✏️ Edit Profile</h3>
@@ -474,8 +444,6 @@
             <div class="error-message" id="editError"></div>
         </div>
     </div>
-    
-    <!-- My Stats Modal -->
     <div class="modal" id="myStatsModal">
         <div class="modal-content" style="max-width:650px;">
             <h3>📈 My Stats</h3>
@@ -485,8 +453,6 @@
             <button class="btn" onclick="closeMyStats()" style="margin-top:20px;">Close</button>
         </div>
     </div>
-    
-    <!-- Support Modal -->
     <div class="modal" id="supportModal">
         <div class="modal-content">
             <h3>📞 Call Center Support</h3>
@@ -498,13 +464,11 @@
     </div>
 
     <script>
-        const API_BASE = 'https://relationships-off-pieces-logs.trycloudflare.com';
-        
+        const API_BASE = 'https://bear-wayne-wednesday-nikon.trycloudflare.com';
         let currentUser = JSON.parse(localStorage.getItem('lingolink_current_user') || 'null');
         let translationHistory = JSON.parse(localStorage.getItem('lingolink_history') || '[]');
         let favorites = JSON.parse(localStorage.getItem('lingolink_favorites') || '[]');
         
-        // ===== THEME =====
         function initTheme() {
             const saved = localStorage.getItem('lingolink_theme') || 'light';
             if (saved === 'dark') { document.body.classList.add('dark'); updateThemeButtons('dark'); }
@@ -512,9 +476,8 @@
         }
         function toggleTheme() {
             const isDark = document.body.classList.toggle('dark');
-            const theme = isDark ? 'dark' : 'light';
-            localStorage.setItem('lingolink_theme', theme);
-            updateThemeButtons(theme);
+            localStorage.setItem('lingolink_theme', isDark ? 'dark' : 'light');
+            updateThemeButtons(isDark ? 'dark' : 'light');
         }
         function updateThemeButtons(theme) {
             document.querySelectorAll('.theme-toggle').forEach(btn => {
@@ -524,60 +487,37 @@
         initTheme();
         
         const languages = [
-            { code: 'aka_Latn', name: 'Akan', flag: '🇬🇭' },
-            { code: 'bem_Latn', name: 'Bemba', flag: '🇿🇲' },
-            { code: 'ewe_Latn', name: 'Ewe', flag: '🇬🇭' },
-            { code: 'fon_Latn', name: 'Fon', flag: '🇧🇯' },
-            { code: 'fuv_Latn', name: 'Fulfulde', flag: '🇳🇬' },
-            { code: 'gaz_Latn', name: 'Oromo', flag: '🇪🇹' },
-            { code: 'hau_Latn', name: 'Hausa', flag: '🇳🇬' },
-            { code: 'ibo_Latn', name: 'Igbo', flag: '🇳🇬' },
-            { code: 'kam_Latn', name: 'Kamba', flag: '🇰🇪' },
-            { code: 'kik_Latn', name: 'Kikuyu', flag: '🇰🇪' },
-            { code: 'kin_Latn', name: 'Kinyarwanda', flag: '🇷🇼' },
-            { code: 'lin_Latn', name: 'Lingala', flag: '🇨🇩' },
-            { code: 'lug_Latn', name: 'Luganda', flag: '🇺🇬' },
-            { code: 'luo_Latn', name: 'Luo', flag: '🇰🇪' },
-            { code: 'nya_Latn', name: 'Nyanja', flag: '🇲🇼' },
-            { code: 'run_Latn', name: 'Rundi', flag: '🇧🇮' },
-            { code: 'sna_Latn', name: 'Shona', flag: '🇿🇼' },
-            { code: 'som_Latn', name: 'Somali', flag: '🇸🇴' },
-            { code: 'swh_Latn', name: 'Swahili', flag: '🇹🇿' },
-            { code: 'twi_Latn', name: 'Twi', flag: '🇬🇭' },
-            { code: 'wol_Latn', name: 'Wolof', flag: '🇸🇳' },
-            { code: 'xho_Latn', name: 'Xhosa', flag: '🇿🇦' },
-            { code: 'yor_Latn', name: 'Yoruba', flag: '🇳🇬' },
-            { code: 'zul_Latn', name: 'Zulu', flag: '🇿🇦' },
-            { code: 'afr_Latn', name: 'Afrikaans', flag: '🇿🇦' },
-            { code: 'arb_Arab', name: 'Arabic', flag: '🇸🇦' },
-            { code: 'deu_Latn', name: 'German', flag: '🇩🇪' },
-            { code: 'eng_Latn', name: 'English', flag: '🇬🇧' },
-            { code: 'fra_Latn', name: 'French', flag: '🇫🇷' },
-            { code: 'hin_Deva', name: 'Hindi', flag: '🇮🇳' },
-            { code: 'ita_Latn', name: 'Italian', flag: '🇮🇹' },
-            { code: 'jpn_Jpan', name: 'Japanese', flag: '🇯🇵' },
-            { code: 'kor_Kore', name: 'Korean', flag: '🇰🇷' },
-            { code: 'nld_Latn', name: 'Dutch', flag: '🇳🇱' },
-            { code: 'por_Latn', name: 'Portuguese', flag: '🇵🇹' },
-            { code: 'rus_Cyrl', name: 'Russian', flag: '🇷🇺' },
-            { code: 'spa_Latn', name: 'Spanish', flag: '🇪🇸' },
-            { code: 'tur_Latn', name: 'Turkish', flag: '🇹🇷' },
-            { code: 'urd_Arab', name: 'Urdu', flag: '🇵🇰' },
-            { code: 'vie_Latn', name: 'Vietnamese', flag: '🇻🇳' },
+            { code: 'aka_Latn', name: 'Akan', flag: '🇬🇭' }, { code: 'bem_Latn', name: 'Bemba', flag: '🇿🇲' },
+            { code: 'ewe_Latn', name: 'Ewe', flag: '🇬🇭' }, { code: 'fon_Latn', name: 'Fon', flag: '🇧🇯' },
+            { code: 'fuv_Latn', name: 'Fulfulde', flag: '🇳🇬' }, { code: 'gaz_Latn', name: 'Oromo', flag: '🇪🇹' },
+            { code: 'hau_Latn', name: 'Hausa', flag: '🇳🇬' }, { code: 'ibo_Latn', name: 'Igbo', flag: '🇳🇬' },
+            { code: 'kam_Latn', name: 'Kamba', flag: '🇰🇪' }, { code: 'kik_Latn', name: 'Kikuyu', flag: '🇰🇪' },
+            { code: 'kin_Latn', name: 'Kinyarwanda', flag: '🇷🇼' }, { code: 'lin_Latn', name: 'Lingala', flag: '🇨🇩' },
+            { code: 'lug_Latn', name: 'Luganda', flag: '🇺🇬' }, { code: 'luo_Latn', name: 'Luo', flag: '🇰🇪' },
+            { code: 'nya_Latn', name: 'Nyanja', flag: '🇲🇼' }, { code: 'run_Latn', name: 'Rundi', flag: '🇧🇮' },
+            { code: 'sna_Latn', name: 'Shona', flag: '🇿🇼' }, { code: 'som_Latn', name: 'Somali', flag: '🇸🇴' },
+            { code: 'swh_Latn', name: 'Swahili', flag: '🇹🇿' }, { code: 'twi_Latn', name: 'Twi', flag: '🇬🇭' },
+            { code: 'wol_Latn', name: 'Wolof', flag: '🇸🇳' }, { code: 'xho_Latn', name: 'Xhosa', flag: '🇿🇦' },
+            { code: 'yor_Latn', name: 'Yoruba', flag: '🇳🇬' }, { code: 'zul_Latn', name: 'Zulu', flag: '🇿🇦' },
+            { code: 'afr_Latn', name: 'Afrikaans', flag: '🇿🇦' }, { code: 'arb_Arab', name: 'Arabic', flag: '🇸🇦' },
+            { code: 'deu_Latn', name: 'German', flag: '🇩🇪' }, { code: 'eng_Latn', name: 'English', flag: '🇬🇧' },
+            { code: 'fra_Latn', name: 'French', flag: '🇫🇷' }, { code: 'hin_Deva', name: 'Hindi', flag: '🇮🇳' },
+            { code: 'ita_Latn', name: 'Italian', flag: '🇮🇹' }, { code: 'jpn_Jpan', name: 'Japanese', flag: '🇯🇵' },
+            { code: 'kor_Kore', name: 'Korean', flag: '🇰🇷' }, { code: 'nld_Latn', name: 'Dutch', flag: '🇳🇱' },
+            { code: 'por_Latn', name: 'Portuguese', flag: '🇵🇹' }, { code: 'rus_Cyrl', name: 'Russian', flag: '🇷🇺' },
+            { code: 'spa_Latn', name: 'Spanish', flag: '🇪🇸' }, { code: 'tur_Latn', name: 'Turkish', flag: '🇹🇷' },
+            { code: 'urd_Arab', name: 'Urdu', flag: '🇵🇰' }, { code: 'vie_Latn', name: 'Vietnamese', flag: '🇻🇳' },
             { code: 'zho_Hans', name: 'Chinese', flag: '🇨🇳' }
         ];
         
         const LANG_MAP = {
-            'eng_Latn': 'en-US', 'swh_Latn': 'sw-KE', 'fra_Latn': 'fr-FR',
-            'deu_Latn': 'de-DE', 'spa_Latn': 'es-ES', 'ita_Latn': 'it-IT',
-            'por_Latn': 'pt-BR', 'arb_Arab': 'ar-SA', 'zho_Hans': 'zh-CN',
-            'jpn_Jpan': 'ja-JP', 'kor_Kore': 'ko-KR', 'hin_Deva': 'hi-IN',
-            'rus_Cyrl': 'ru-RU', 'nld_Latn': 'nl-NL', 'tur_Latn': 'tr-TR',
-            'vie_Latn': 'vi-VN', 'urd_Arab': 'ur-PK', 'yor_Latn': 'yo-NG',
-            'hau_Latn': 'ha-NG', 'ibo_Latn': 'ig-NG', 'zul_Latn': 'zu-ZA',
-            'xho_Latn': 'xh-ZA', 'afr_Latn': 'af-ZA', 'som_Latn': 'so-SO',
-            'kik_Latn': 'ki-KE', 'lug_Latn': 'lg-UG', 'lin_Latn': 'ln-CD',
-            'kin_Latn': 'rw-RW'
+            'eng_Latn': 'en-US', 'swh_Latn': 'sw-KE', 'fra_Latn': 'fr-FR', 'deu_Latn': 'de-DE',
+            'spa_Latn': 'es-ES', 'ita_Latn': 'it-IT', 'por_Latn': 'pt-BR', 'arb_Arab': 'ar-SA',
+            'zho_Hans': 'zh-CN', 'jpn_Jpan': 'ja-JP', 'kor_Kore': 'ko-KR', 'hin_Deva': 'hi-IN',
+            'rus_Cyrl': 'ru-RU', 'nld_Latn': 'nl-NL', 'tur_Latn': 'tr-TR', 'vie_Latn': 'vi-VN',
+            'urd_Arab': 'ur-PK', 'yor_Latn': 'yo-NG', 'hau_Latn': 'ha-NG', 'ibo_Latn': 'ig-NG',
+            'zul_Latn': 'zu-ZA', 'xho_Latn': 'xh-ZA', 'afr_Latn': 'af-ZA', 'som_Latn': 'so-SO',
+            'kik_Latn': 'ki-KE', 'lug_Latn': 'lg-UG', 'lin_Latn': 'ln-CD', 'kin_Latn': 'rw-RW'
         };
         
         function getLangName(code) {
@@ -593,10 +533,8 @@
         let uploadedAudioFile = null;
         let uploadedVideoFile = null;
         
-        // ===== SPEECH =====
         function speakText(text, langCode) {
-            if (!window.speechSynthesis) return;
-            if (!text || !text.trim()) return;
+            if (!window.speechSynthesis || !text || !text.trim()) return;
             window.speechSynthesis.cancel();
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = LANG_MAP[langCode] || 'en-US';
@@ -607,19 +545,14 @@
             if (v) utterance.voice = v;
             window.speechSynthesis.speak(utterance);
         }
-        
         function speakTranslated(textId, selectId) {
-            const text = document.getElementById(textId).textContent;
-            const langCode = document.getElementById(selectId).value;
-            speakText(text, langCode);
+            speakText(document.getElementById(textId).textContent, document.getElementById(selectId).value);
         }
-        
         if (window.speechSynthesis) {
             window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
             window.speechSynthesis.getVoices();
         }
         
-        // ===== DOWNLOAD =====
         function downloadText(elementId) {
             const text = document.getElementById(elementId).textContent;
             if (!text || !text.trim()) { alert('Nothing to download'); return; }
@@ -628,126 +561,70 @@
             const a = document.createElement('a');
             a.href = url;
             a.download = `lingolink_translation_${Date.now()}.txt`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
             URL.revokeObjectURL(url);
         }
         
-        // ===== MY STATS MODAL =====
         function showMyStats() {
             document.getElementById('dropdownMenu').classList.remove('show');
             document.getElementById('myStatsModal').classList.add('show');
             loadMyStats();
         }
-        
-        function closeMyStats() {
-            document.getElementById('myStatsModal').classList.remove('show');
-        }
+        function closeMyStats() { document.getElementById('myStatsModal').classList.remove('show'); }
         
         function loadMyStats() {
             const container = document.getElementById('myStatsContent');
-            
             if (translationHistory.length === 0 && favorites.length === 0) {
                 container.innerHTML = '<div class="stats-empty">📈 No activity yet. Start translating to see your stats!</div>';
                 return;
             }
-            
             const totalTranslations = translationHistory.length;
             const totalFavorites = favorites.length;
-            
-            const sourceCounts = {};
-            const targetCounts = {};
+            const sourceCounts = {}, targetCounts = {};
             translationHistory.forEach(t => {
                 sourceCounts[t.source_lang] = (sourceCounts[t.source_lang] || 0) + 1;
                 targetCounts[t.target_lang] = (targetCounts[t.target_lang] || 0) + 1;
             });
-            
             const topSources = Object.entries(sourceCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
             const topTargets = Object.entries(targetCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-            
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
+            const today = new Date(); today.setHours(0, 0, 0, 0);
             const todayCount = translationHistory.filter(t => new Date(t.created_at) >= today).length;
-            
             const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
             const weekCount = translationHistory.filter(t => new Date(t.created_at) >= weekAgo).length;
-            
             const mostUsedTarget = topTargets.length > 0 ? topTargets[0] : null;
             const maxSourceCount = topSources.length > 0 ? topSources[0][1] : 1;
             const maxTargetCount = topTargets.length > 0 ? topTargets[0][1] : 1;
             
             container.innerHTML = `
                 <div class="stats-cards">
-                    <div class="stats-card">
-                        <div class="stats-label">Total Translations</div>
-                        <div class="stats-value">${totalTranslations}</div>
-                    </div>
-                    <div class="stats-card green">
-                        <div class="stats-label">Today</div>
-                        <div class="stats-value">${todayCount}</div>
-                    </div>
-                    <div class="stats-card orange">
-                        <div class="stats-label">This Week</div>
-                        <div class="stats-value">${weekCount}</div>
-                    </div>
-                    <div class="stats-card purple">
-                        <div class="stats-label">Favorites</div>
-                        <div class="stats-value">${totalFavorites}</div>
-                    </div>
+                    <div class="stats-card"><div class="stats-label">Total Translations</div><div class="stats-value">${totalTranslations}</div></div>
+                    <div class="stats-card green"><div class="stats-label">Today</div><div class="stats-value">${todayCount}</div></div>
+                    <div class="stats-card orange"><div class="stats-label">This Week</div><div class="stats-value">${weekCount}</div></div>
+                    <div class="stats-card purple"><div class="stats-label">Favorites</div><div class="stats-value">${totalFavorites}</div></div>
                 </div>
-                
                 ${mostUsedTarget ? `
                 <div class="stats-section" style="background: linear-gradient(135deg, rgba(102,126,234,0.15), rgba(118,75,162,0.15)); text-align: center;">
                     <div style="color: var(--text-muted); font-size: 13px; margin-bottom: 8px;">🎯 Most Translated To</div>
                     <div style="font-size: 22px; font-weight: bold; color: var(--text);">${getLangName(mostUsedTarget[0])}</div>
                     <div style="color: var(--text-muted); font-size: 13px; margin-top: 5px;">${mostUsedTarget[1]} translations</div>
-                </div>
-                ` : ''}
-                
+                </div>` : ''}
                 <div class="stats-section">
                     <h3>📤 Your Source Languages (Top 5)</h3>
                     ${topSources.length === 0 ? '<div class="stats-empty">No data</div>' : topSources.map(([lang, count]) => `
-                        <div class="stats-bar-row">
-                            <span class="stats-bar-label">${getLangName(lang)}</span>
-                            <span class="stats-bar-count">${count}</span>
-                        </div>
-                        <div class="stats-bar-outer">
-                            <div class="stats-bar-inner" style="width: ${(count / maxSourceCount) * 100}%"></div>
-                        </div>
+                        <div class="stats-bar-row"><span class="stats-bar-label">${getLangName(lang)}</span><span class="stats-bar-count">${count}</span></div>
+                        <div class="stats-bar-outer"><div class="stats-bar-inner" style="width: ${(count / maxSourceCount) * 100}%"></div></div>
                     `).join('')}
                 </div>
-                
                 <div class="stats-section">
                     <h3>📥 Your Target Languages (Top 5)</h3>
                     ${topTargets.length === 0 ? '<div class="stats-empty">No data</div>' : topTargets.map(([lang, count]) => `
-                        <div class="stats-bar-row">
-                            <span class="stats-bar-label">${getLangName(lang)}</span>
-                            <span class="stats-bar-count">${count}</span>
-                        </div>
-                        <div class="stats-bar-outer">
-                            <div class="stats-bar-inner" style="width: ${(count / maxTargetCount) * 100}%"></div>
-                        </div>
+                        <div class="stats-bar-row"><span class="stats-bar-label">${getLangName(lang)}</span><span class="stats-bar-count">${count}</span></div>
+                        <div class="stats-bar-outer"><div class="stats-bar-inner" style="width: ${(count / maxTargetCount) * 100}%"></div></div>
                     `).join('')}
                 </div>
-                
-                ${translationHistory.length > 0 ? `
-                <div class="stats-section">
-                    <h3>🕐 Recent Activity</h3>
-                    ${translationHistory.slice(0, 5).map(t => `
-                        <div style="padding: 10px 0; border-bottom: 1px solid var(--border);">
-                            <div style="font-size: 13px; color: var(--text);">${t.source_text.substring(0, 60)}${t.source_text.length > 60 ? '...' : ''}</div>
-                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
-                                ${getLangName(t.source_lang)} → ${getLangName(t.target_lang)} • ${new Date(t.created_at).toLocaleString()}
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-                ` : ''}
             `;
         }
         
-        // ===== SEARCH =====
         function initSearchFilters() {
             const srcSel = document.getElementById('searchSourceLang');
             const tgtSel = document.getElementById('searchTargetLang');
@@ -763,15 +640,10 @@
             const tgtLang = document.getElementById('searchTargetLang').value;
             const dateRange = document.getElementById('searchDate').value;
             const sort = document.getElementById('searchSort').value;
-            
             let results = [...translationHistory];
-            
-            if (query) results = results.filter(r => 
-                (r.source_text || '').toLowerCase().includes(query) ||
-                (r.translated_text || '').toLowerCase().includes(query));
+            if (query) results = results.filter(r => (r.source_text || '').toLowerCase().includes(query) || (r.translated_text || '').toLowerCase().includes(query));
             if (srcLang) results = results.filter(r => r.source_lang === srcLang);
             if (tgtLang) results = results.filter(r => r.target_lang === tgtLang);
-            
             if (dateRange) {
                 const now = new Date();
                 let cutoff;
@@ -780,15 +652,12 @@
                 else if (dateRange === 'month') cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
                 if (cutoff) results = results.filter(r => new Date(r.created_at) >= cutoff);
             }
-            
             if (sort === 'oldest') results.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
             else if (sort === 'az') results.sort((a, b) => (a.source_text || '').localeCompare(b.source_text || ''));
             else if (sort === 'za') results.sort((a, b) => (b.source_text || '').localeCompare(a.source_text || ''));
             else results.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-            
             renderHistoryList(results);
         }
-        
         function clearSearch() {
             document.getElementById('searchQuery').value = '';
             document.getElementById('searchSourceLang').value = '';
@@ -797,29 +666,13 @@
             document.getElementById('searchSort').value = 'newest';
             runSearch();
         }
-        
         function renderHistoryList(results) {
             const list = document.getElementById('historyList');
             const countDiv = document.getElementById('resultsCount');
-            
-            const hasFilters = document.getElementById('searchQuery').value.trim() ||
-                              document.getElementById('searchSourceLang').value ||
-                              document.getElementById('searchTargetLang').value ||
-                              document.getElementById('searchDate').value;
-            
-            if (hasFilters) {
-                countDiv.textContent = `🔍 ${results.length} result${results.length !== 1 ? 's' : ''} found`;
-                countDiv.style.display = 'block';
-            } else {
-                countDiv.style.display = 'none';
-            }
-            
-            if (results.length === 0) {
-                list.innerHTML = '<div class="empty-state">' + 
-                    (hasFilters ? '🔍 No translations match your search' : 'No translation history yet') + '</div>';
-                return;
-            }
-            
+            const hasFilters = document.getElementById('searchQuery').value.trim() || document.getElementById('searchSourceLang').value || document.getElementById('searchTargetLang').value || document.getElementById('searchDate').value;
+            if (hasFilters) { countDiv.textContent = `🔍 ${results.length} result${results.length !== 1 ? 's' : ''} found`; countDiv.style.display = 'block'; }
+            else countDiv.style.display = 'none';
+            if (results.length === 0) { list.innerHTML = '<div class="empty-state">' + (hasFilters ? '🔍 No translations match' : 'No translation history yet') + '</div>'; return; }
             list.innerHTML = results.map(record => `
                 <div class="history-item">
                     <button class="delete-btn" onclick="deleteHistoryItem(${record.id})">Delete</button>
@@ -834,7 +687,6 @@
             `).join('');
         }
         
-        // ===== FAVORITES =====
         function toggleFavoriteFromResult(context) {
             let sourceText, translatedText, sourceLang, targetLang;
             if (context === 'text') {
@@ -854,7 +706,6 @@
                 targetLang = document.getElementById('targetLangUpload').value;
             }
             if (!sourceText || !translatedText || translatedText === 'N/A') { alert('Nothing to favorite'); return; }
-            
             const existing = favorites.find(f => f.source_text === sourceText && f.translated_text === translatedText && f.source_lang === sourceLang && f.target_lang === targetLang);
             if (existing) {
                 favorites = favorites.filter(f => f.id !== existing.id);
@@ -867,7 +718,6 @@
             }
             updateFavButton(context);
         }
-        
         function updateFavButton(context) {
             let btn = null, sourceText, translatedText, sourceLang, targetLang;
             if (context === 'text') {
@@ -882,19 +732,14 @@
             btn.textContent = isFav ? '⭐ Favorited' : '⭐ Favorite';
             btn.classList.toggle('active', isFav);
         }
-        
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
-        
         function loadFavorites() {
             const list = document.getElementById('favoritesList');
-            if (favorites.length === 0) {
-                list.innerHTML = '<div class="empty-state">⭐ No favorites yet. Tap the star button on any translation to save it here.</div>';
-                return;
-            }
+            if (favorites.length === 0) { list.innerHTML = '<div class="empty-state">⭐ No favorites yet. Tap the star button on any translation to save it here.</div>'; return; }
             list.innerHTML = favorites.map(fav => `
                 <div class="favorite-item">
                     <button class="delete-btn" onclick="removeFavorite(${fav.id})">Remove</button>
@@ -908,7 +753,6 @@
                 </div>
             `).join('');
         }
-        
         function downloadFromFav(id) {
             const fav = favorites.find(f => f.id === id);
             if (!fav) return;
@@ -921,14 +765,12 @@
             document.body.appendChild(a); a.click(); document.body.removeChild(a);
             URL.revokeObjectURL(url);
         }
-        
         function removeFavorite(id) {
             if (!confirm('Remove from favorites?')) return;
             favorites = favorites.filter(f => f.id !== id);
             localStorage.setItem('lingolink_favorites', JSON.stringify(favorites));
             loadFavorites();
         }
-        
         function clearFavorites() {
             if (!confirm('Clear ALL favorites?')) return;
             favorites = [];
@@ -936,7 +778,6 @@
             loadFavorites();
         }
         
-        // ===== AUTH =====
         function switchAuthTab(tab) {
             document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
             if (tab === 'login') {
@@ -972,7 +813,8 @@
                 });
                 const data = await response.json();
                 if (!response.ok) throw new Error(data.detail || 'Signup failed');
-                successDiv.textContent = '✅ Account created!'; successDiv.classList.add('show');
+                successDiv.textContent = '✅ Account created! Logging in...';
+                successDiv.classList.add('show');
                 currentUser = data.user;
                 localStorage.setItem('lingolink_current_user', JSON.stringify(data.user));
                 setTimeout(() => showMainApp(data.user), 800);
@@ -1021,7 +863,6 @@
             initSearchFilters();
         }
         
-        // ===== PROFILE =====
         function toggleDropdown() { document.getElementById('dropdownMenu').classList.toggle('show'); }
         document.addEventListener('click', function(e) {
             if (!e.target.closest('.profile-container')) document.getElementById('dropdownMenu').classList.remove('show');
@@ -1035,7 +876,6 @@
             document.getElementById('editError').classList.remove('show');
             document.getElementById('editProfileModal').classList.add('show');
         }
-        
         function closeEditProfile() { document.getElementById('editProfileModal').classList.remove('show'); }
         
         async function saveProfile() {
@@ -1065,18 +905,10 @@
         function showSupport() { document.getElementById('dropdownMenu').classList.remove('show'); document.getElementById('supportModal').classList.add('show'); }
         function closeSupport() { document.getElementById('supportModal').classList.remove('show'); }
         
-        // ===== TABS =====
         function switchTab(tab) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            
-            const tabMap = {
-                'translate': { idx: 1, id: 'translateTab' },
-                'record': { idx: 2, id: 'recordTab' },
-                'upload': { idx: 3, id: 'uploadTab' },
-                'history': { idx: 4, id: 'historyTab' },
-                'favorites': { idx: 5, id: 'favoritesTab' }
-            };
+            const tabMap = { 'translate': { idx: 1, id: 'translateTab' }, 'record': { idx: 2, id: 'recordTab' }, 'upload': { idx: 3, id: 'uploadTab' }, 'history': { idx: 4, id: 'historyTab' }, 'favorites': { idx: 5, id: 'favoritesTab' } };
             const t = tabMap[tab];
             if (t) {
                 document.querySelector(`.tab:nth-child(${t.idx})`).classList.add('active');
@@ -1101,7 +933,7 @@
             selects.forEach(select => {
                 languages.forEach(lang => select.appendChild(new Option(`${lang.flag} ${lang.name}`, lang.code)));
             });
-            document.getElementById('sourceLang').value = 'eng_Latn';
+            document.getElementById('sourceLang').value = 'auto';
             document.getElementById('targetLang').value = 'swh_Latn';
             document.getElementById('sourceLangRecord').value = 'eng_Latn';
             document.getElementById('targetLangRecord').value = 'swh_Latn';
@@ -1109,7 +941,6 @@
             document.getElementById('targetLangUpload').value = 'swh_Latn';
         }
         
-        // ===== RECORDING =====
         async function toggleRecording() {
             if (mediaRecorder && mediaRecorder.state === 'recording') stopRecording();
             else startRecording();
@@ -1178,7 +1009,6 @@
             }
         }
         
-        // ===== UPLOAD =====
         function handleAudioUpload(file) {
             if (file) { uploadedAudioFile = file; document.getElementById('audioFileName').textContent = `📎 ${file.name}`; checkUploadReady(); }
         }
@@ -1219,7 +1049,6 @@
             }
         }
         
-        // ===== TEXT TRANSLATION =====
         async function translateText() {
             const text = document.getElementById('inputText').value.trim();
             if (!text) { alert('Please enter text to translate'); return; }
@@ -1237,7 +1066,7 @@
                 const data = await response.json();
                 document.getElementById('sourceText').textContent = data.source_text;
                 document.getElementById('translatedText').textContent = data.translated_text;
-                document.getElementById('latency').textContent = `Processing time: ${data.latency_seconds} seconds`;
+                let latencyText = `Processing time: ${data.latency_seconds} seconds`;
                 translationHistory.unshift({
                     id: Date.now(), source_text: data.source_text, translated_text: data.translated_text,
                     source_lang: sourceLang, target_lang: targetLang, created_at: new Date().toISOString()
@@ -1254,7 +1083,6 @@
             }
         }
         
-        // ===== HISTORY =====
         function loadHistory() { runSearch(); }
         
         function favoriteFromHistory(id) {
@@ -1291,7 +1119,6 @@
             localStorage.setItem('lingolink_history', JSON.stringify(translationHistory));
             runSearch();
         }
-        
         function clearHistory() {
             if (!confirm('Clear ALL translation history?')) return;
             translationHistory = [];

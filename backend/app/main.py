@@ -16,7 +16,6 @@ from typing import Optional
 
 from app.models import get_db, User, TranslationRecord, engine, Base
 
-# Create tables
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
@@ -91,7 +90,63 @@ def verify_admin(authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=401, detail="Invalid admin credentials")
     return True
 
-# ===== REQUEST MODELS =====
+# ===== LANGUAGE DETECTION (lightweight, free) =====
+# Simple heuristic: match common words and character ranges per language.
+# Not perfect, but works well enough for common phrases.
+
+LANG_HINTS = {
+    "swh_Latn": ["habari", "asante", "karibu", "ndiyo", "hapana", "jambo", "nzuri", "tafadhali", "sana", "kwaheri"],
+    "eng_Latn": ["the", "and", "you", "hello", "yes", "no", "please", "thank", "how", "what", "where", "good", "morning"],
+    "fra_Latn": ["bonjour", "merci", "oui", "non", "s'il", "vous", "comment", "ça", "très", "bien", "au revoir"],
+    "spa_Latn": ["hola", "gracias", "sí", "no", "por", "cómo", "está", "buenos", "días", "adiós", "qué"],
+    "deu_Latn": ["hallo", "danke", "ja", "nein", "wie", "geht", "guten", "morgen", "bitte", "tschüss"],
+    "ita_Latn": ["ciao", "grazie", "sì", "no", "come", "stai", "buongiorno", "per favore", "arrivederci"],
+    "por_Latn": ["olá", "obrigado", "sim", "não", "como", "está", "bom", "dia", "por favor", "tchau"],
+    "yor_Latn": ["bawo", "pele", "oṣe", "bẹẹni", "rara", "jọwọ", "o dabo", "ẹ ku"],
+    "hau_Latn": ["sannu", "na gode", "eh", "a'a", "yaya", "kaka", "ban kwana"],
+    "zul_Latn": ["sawubona", "ngiyabonga", "yebo", "cha", "unjani", "hamba kahle"],
+    "xho_Latn": ["molo", "enkosi", "ewe", "hayi", "unjani", "hamba kakuhle"],
+    "lug_Latn": ["oli otya", "weebale", "yee", "nedda", "ki", "gyendi"],
+    "kin_Latn": ["muraho", "murakoze", "yego", "oya", "amakuru", "bite"],
+    "som_Latn": ["salaam", "mahadsanid", "haa", "maya", "sidee", "tahay"],
+    "amh_Ethi": ["ሰላም", "አመሰግናለሁ", "አዎ", "አይ"],
+}
+
+CHAR_RANGES = {
+    "arb_Arab": (0x0600, 0x06FF),
+    "hin_Deva": (0x0900, 0x097F),
+    "zho_Hans": (0x4E00, 0x9FFF),
+    "jpn_Jpan": (0x3040, 0x30FF),
+    "kor_Kore": (0xAC00, 0xD7AF),
+    "rus_Cyrl": (0x0400, 0x04FF),
+    "amh_Ethi": (0x1200, 0x137F),
+}
+
+def detect_language(text: str) -> str:
+    """Return a best-guess language code using character ranges + keyword hints."""
+    if not text or not text.strip():
+        return "eng_Latn"
+    
+    # 1. Check character ranges first (CJK, Arabic, Cyrillic, etc.)
+    for code, (start, end) in CHAR_RANGES.items():
+        count = sum(1 for c in text if start <= ord(c) <= end)
+        if count > len(text) * 0.3:
+            return code
+    
+    # 2. Check keyword hints
+    lower = text.lower()
+    scores = {}
+    for lang, keywords in LANG_HINTS.items():
+        score = sum(1 for kw in keywords if kw in lower)
+        if score > 0:
+            scores[lang] = score
+    
+    if scores:
+        return max(scores, key=scores.get)
+    
+    # 3. Default: assume English
+    return "eng_Latn"
+
 class SignupRequest(BaseModel):
     name: str
     email: str
@@ -112,6 +167,9 @@ class TranslationRequest(BaseModel):
     source_lang: str = "eng_Latn"
     target_lang: str = "swh_Latn"
 
+class DetectRequest(BaseModel):
+    text: str
+
 class AdminLoginRequest(BaseModel):
     username: str
     password: str
@@ -120,7 +178,13 @@ class AdminLoginRequest(BaseModel):
 async def root():
     return {"Hello": "LingoLink AI Backend is running"}
 
-# ===== AUTHENTICATION =====
+@app.post("/detect_language/")
+async def detect_language_endpoint(request: DetectRequest):
+    detected = detect_language(request.text)
+    return {
+        "detected_lang": detected,
+        "text": request.text
+    }
 
 @app.post("/auth/signup/")
 async def signup(request: SignupRequest, db: Session = Depends(get_db)):
@@ -129,13 +193,14 @@ async def signup(request: SignupRequest, db: Session = Depends(get_db)):
     if len(request.password) < 6:
         raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
     
-    existing = db.query(User).filter(User.email == request.email.lower().strip()).first()
+    email_lower = request.email.lower().strip()
+    existing = db.query(User).filter(User.email == email_lower).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
     
     user = User(
         name=request.name.strip(),
-        email=request.email.lower().strip(),
+        email=email_lower,
         password=hash_password(request.password)
     )
     db.add(user)
@@ -153,7 +218,9 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
     if not request.email.strip() or not request.password:
         raise HTTPException(status_code=400, detail="Email and password required")
     
-    user = db.query(User).filter(User.email == request.email.lower().strip()).first()
+    email_lower = request.email.lower().strip()
+    user = db.query(User).filter(User.email == email_lower).first()
+    
     if not user or user.password != hash_password(request.password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     
@@ -192,8 +259,6 @@ async def update_profile(request: UpdateProfileRequest, db: Session = Depends(ge
         "message": "Profile updated"
     }
 
-# ===== ADMIN =====
-
 @app.post("/admin/login/")
 async def admin_login(request: AdminLoginRequest):
     if request.username == ADMIN_USERNAME and request.password == ADMIN_PASSWORD:
@@ -222,7 +287,6 @@ async def admin_stats(admin: bool = Depends(verify_admin), db: Session = Depends
         TranslationRecord.created_at >= datetime.utcnow() - timedelta(days=7)
     ).count()
     
-    # Daily counts for the last 7 days
     daily_counts = []
     for i in range(6, -1, -1):
         day_start = (datetime.utcnow() - timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
@@ -231,10 +295,7 @@ async def admin_stats(admin: bool = Depends(verify_admin), db: Session = Depends
             TranslationRecord.created_at >= day_start,
             TranslationRecord.created_at < day_end
         ).count()
-        daily_counts.append({
-            "date": day_start.strftime("%Y-%m-%d"),
-            "count": count
-        })
+        daily_counts.append({"date": day_start.strftime("%Y-%m-%d"), "count": count})
     
     return {
         "total_translations": total_translations,
@@ -254,12 +315,7 @@ async def admin_users(admin: bool = Depends(verify_admin), db: Session = Depends
     return {
         "total": len(users),
         "users": [
-            {
-                "id": u.id,
-                "name": u.name,
-                "email": u.email,
-                "created_at": u.created_at.isoformat() if u.created_at else None
-            }
+            {"id": u.id, "name": u.name, "email": u.email, "created_at": u.created_at.isoformat() if u.created_at else None}
             for u in users
         ]
     }
@@ -278,14 +334,9 @@ async def admin_translations(
     return {
         "total": db.query(TranslationRecord).count(),
         "records": [
-            {
-                "id": r.id,
-                "source_lang": r.source_lang,
-                "target_lang": r.target_lang,
-                "source_text": r.source_text,
-                "translated_text": r.translated_text,
-                "created_at": r.created_at.isoformat() if r.created_at else None
-            }
+            {"id": r.id, "source_lang": r.source_lang, "target_lang": r.target_lang,
+             "source_text": r.source_text, "translated_text": r.translated_text,
+             "created_at": r.created_at.isoformat() if r.created_at else None}
             for r in records
         ]
     }
@@ -312,14 +363,19 @@ async def admin_clear_translations(
     db.commit()
     return {"message": f"Deleted {count} records"}
 
-# ===== TRANSLATION =====
-
 @app.post("/translate_text/")
 async def translate_text(request: TranslationRequest, db: Session = Depends(get_db)):
     load_models()
     start_time = time.time()
 
-    translation_tokenizer.src_lang = request.source_lang
+    # Auto-detect if requested
+    source_lang = request.source_lang
+    detected = False
+    if source_lang == "auto":
+        source_lang = detect_language(request.text)
+        detected = True
+
+    translation_tokenizer.src_lang = source_lang
     encoded_input = translation_tokenizer(request.text, return_tensors="pt")
     generated_tokens = translation_model.generate(
         **encoded_input,
@@ -340,7 +396,7 @@ async def translate_text(request: TranslationRequest, db: Session = Depends(get_
         print(f"TTS error: {e}")
 
     record = TranslationRecord(
-        source_lang=request.source_lang,
+        source_lang=source_lang,
         target_lang=request.target_lang,
         source_text=request.text,
         translated_text=translated_text
@@ -353,6 +409,8 @@ async def translate_text(request: TranslationRequest, db: Session = Depends(get_
         "id": record.id,
         "source_text": request.text,
         "translated_text": translated_text,
+        "source_lang": source_lang,
+        "detected": detected,
         "tts_file_path": tts_url,
         "latency_seconds": round(time.time() - start_time, 2),
         "message": "Text translation successful"
@@ -373,8 +431,25 @@ async def translate_audio(
     with open(file_location, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
+    # Whisper auto-detects language
     stt_result = whisper_model.transcribe(file_location)
     source_text = stt_result["text"].strip()
+    whisper_detected = stt_result.get("language", "en")
+    
+    # Map Whisper's language code to NLLB code
+    WHISPER_TO_NLLB = {
+        "en": "eng_Latn", "sw": "swh_Latn", "fr": "fra_Latn", "de": "deu_Latn",
+        "es": "spa_Latn", "it": "ita_Latn", "pt": "por_Latn", "ar": "arb_Arab",
+        "zh": "zho_Hans", "ja": "jpn_Jpan", "ko": "kor_Kore", "hi": "hin_Deva",
+        "ru": "rus_Cyrl", "nl": "nld_Latn", "tr": "tur_Latn", "vi": "vie_Latn",
+        "ur": "urd_Arab", "yo": "yor_Latn", "ha": "hau_Latn", "ig": "ibo_Latn",
+        "zu": "zul_Latn", "xh": "xho_Latn", "af": "afr_Latn", "so": "som_Latn"
+    }
+    
+    detected = False
+    if source_lang == "auto":
+        source_lang = WHISPER_TO_NLLB.get(whisper_detected, "eng_Latn")
+        detected = True
 
     translation_tokenizer.src_lang = source_lang
     encoded_input = translation_tokenizer(source_text, return_tensors="pt")
@@ -410,6 +485,8 @@ async def translate_audio(
         "id": record.id,
         "source_text": source_text,
         "translated_text": translated_text,
+        "source_lang": source_lang,
+        "detected": detected,
         "tts_file_path": tts_url,
         "latency_seconds": round(time.time() - start_time, 2),
         "message": "Audio translation successful"
@@ -419,14 +496,9 @@ async def translate_audio(
 async def get_history(db: Session = Depends(get_db), limit: int = 10):
     records = db.query(TranslationRecord).order_by(TranslationRecord.created_at.desc()).limit(limit).all()
     return [
-        {
-            "id": r.id,
-            "source_lang": r.source_lang,
-            "target_lang": r.target_lang,
-            "source_text": r.source_text,
-            "translated_text": r.translated_text,
-            "created_at": r.created_at.isoformat() if r.created_at else None
-        }
+        {"id": r.id, "source_lang": r.source_lang, "target_lang": r.target_lang,
+         "source_text": r.source_text, "translated_text": r.translated_text,
+         "created_at": r.created_at.isoformat() if r.created_at else None}
         for r in records
     ]
 
