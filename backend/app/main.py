@@ -1,4 +1,4 @@
-﻿from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Header
+﻿from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Header, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
@@ -30,6 +30,63 @@ app.add_middleware(
 
 os.makedirs("data/audio", exist_ok=True)
 app.mount("/data/audio", StaticFiles(directory="data/audio"), name="audio")
+# ===== WEBSOCKET FOR AGENT CONSOLE =====
+
+class AgentConnectionManager:
+    def __init__(self):
+        self.active = []
+    
+    async def connect(self, ws: WebSocket):
+        await ws.accept()
+        self.active.append(ws)
+    
+    def disconnect(self, ws: WebSocket):
+        if ws in self.active:
+            self.active.remove(ws)
+
+agent_manager = AgentConnectionManager()
+
+@app.websocket("/ws/agent")
+async def agent_websocket(ws: WebSocket):
+    await agent_manager.connect(ws)
+    print(f"Agent connected. Total: {len(agent_manager.active)}")
+    try:
+        while True:
+            data = await ws.receive_json()
+            msg_type = data.get("type")
+            
+            if msg_type == "agent_hello":
+                await ws.send_json({
+                    "type": "welcome",
+                    "message": "Connected to LingoLink Agent Console",
+                    "agent_id": data.get("agent_id")
+                })
+            
+            elif msg_type == "call_start":
+                await ws.send_json({"type": "call_started", "call_id": data.get("call_id")})
+                await ws.send_json({"type": "transcript", "speaker": "caller", "text": "Habari, nina tatizo na akaunti yangu."})
+                await ws.send_json({"type": "transcript", "speaker": "agent", "text": "Hello, I have a problem with my account."})
+            
+            elif msg_type == "call_end":
+                await ws.send_json({"type": "call_ended", "call_id": data.get("call_id")})
+            
+            elif msg_type == "audio_chunk_start":
+                await ws.send_json({
+                    "type": "transcript",
+                    "speaker": data.get("speaker", "agent"),
+                    "text": "[Audio received - real streaming in Phase 2]"
+                })
+            
+            else:
+                await ws.send_json({"type": "error", "message": f"Unknown message type: {msg_type}"})
+    
+    except WebSocketDisconnect:
+        agent_manager.disconnect(ws)
+        print(f"Agent disconnected. Total: {len(agent_manager.active)}")
+    except Exception as e:
+        print(f"WebSocket error: {e}")
+        agent_manager.disconnect(ws)
+
 
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "lingolink256"
