@@ -10,6 +10,8 @@ import time
 import edge_tts
 import os
 import hashlib
+import base64
+import tempfile
 from datetime import datetime, timedelta
 from pydantic import BaseModel
 from typing import Optional
@@ -30,63 +32,6 @@ app.add_middleware(
 
 os.makedirs("data/audio", exist_ok=True)
 app.mount("/data/audio", StaticFiles(directory="data/audio"), name="audio")
-# ===== WEBSOCKET FOR AGENT CONSOLE =====
-
-class AgentConnectionManager:
-    def __init__(self):
-        self.active = []
-    
-    async def connect(self, ws: WebSocket):
-        await ws.accept()
-        self.active.append(ws)
-    
-    def disconnect(self, ws: WebSocket):
-        if ws in self.active:
-            self.active.remove(ws)
-
-agent_manager = AgentConnectionManager()
-
-@app.websocket("/ws/agent")
-async def agent_websocket(ws: WebSocket):
-    await agent_manager.connect(ws)
-    print(f"Agent connected. Total: {len(agent_manager.active)}")
-    try:
-        while True:
-            data = await ws.receive_json()
-            msg_type = data.get("type")
-            
-            if msg_type == "agent_hello":
-                await ws.send_json({
-                    "type": "welcome",
-                    "message": "Connected to LingoLink Agent Console",
-                    "agent_id": data.get("agent_id")
-                })
-            
-            elif msg_type == "call_start":
-                await ws.send_json({"type": "call_started", "call_id": data.get("call_id")})
-                await ws.send_json({"type": "transcript", "speaker": "caller", "text": "Habari, nina tatizo na akaunti yangu."})
-                await ws.send_json({"type": "transcript", "speaker": "agent", "text": "Hello, I have a problem with my account."})
-            
-            elif msg_type == "call_end":
-                await ws.send_json({"type": "call_ended", "call_id": data.get("call_id")})
-            
-            elif msg_type == "audio_chunk_start":
-                await ws.send_json({
-                    "type": "transcript",
-                    "speaker": data.get("speaker", "agent"),
-                    "text": "[Audio received - real streaming in Phase 2]"
-                })
-            
-            else:
-                await ws.send_json({"type": "error", "message": f"Unknown message type: {msg_type}"})
-    
-    except WebSocketDisconnect:
-        agent_manager.disconnect(ws)
-        print(f"Agent disconnected. Total: {len(agent_manager.active)}")
-    except Exception as e:
-        print(f"WebSocket error: {e}")
-        agent_manager.disconnect(ws)
-
 
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "lingolink256"
@@ -137,7 +82,6 @@ def hash_password(password: str) -> str:
 def verify_admin(authorization: Optional[str] = Header(None)):
     if not authorization or not authorization.startswith("Basic "):
         raise HTTPException(status_code=401, detail="Admin authentication required")
-    import base64
     try:
         decoded = base64.b64decode(authorization[6:]).decode()
         username, password = decoded.split(":", 1)
@@ -147,62 +91,180 @@ def verify_admin(authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=401, detail="Invalid admin credentials")
     return True
 
-# ===== LANGUAGE DETECTION (lightweight, free) =====
-# Simple heuristic: match common words and character ranges per language.
-# Not perfect, but works well enough for common phrases.
+# ===== WEBSOCKET FOR AGENT CONSOLE =====
 
-LANG_HINTS = {
-    "swh_Latn": ["habari", "asante", "karibu", "ndiyo", "hapana", "jambo", "nzuri", "tafadhali", "sana", "kwaheri"],
-    "eng_Latn": ["the", "and", "you", "hello", "yes", "no", "please", "thank", "how", "what", "where", "good", "morning"],
-    "fra_Latn": ["bonjour", "merci", "oui", "non", "s'il", "vous", "comment", "ça", "très", "bien", "au revoir"],
-    "spa_Latn": ["hola", "gracias", "sí", "no", "por", "cómo", "está", "buenos", "días", "adiós", "qué"],
-    "deu_Latn": ["hallo", "danke", "ja", "nein", "wie", "geht", "guten", "morgen", "bitte", "tschüss"],
-    "ita_Latn": ["ciao", "grazie", "sì", "no", "come", "stai", "buongiorno", "per favore", "arrivederci"],
-    "por_Latn": ["olá", "obrigado", "sim", "não", "como", "está", "bom", "dia", "por favor", "tchau"],
-    "yor_Latn": ["bawo", "pele", "oṣe", "bẹẹni", "rara", "jọwọ", "o dabo", "ẹ ku"],
-    "hau_Latn": ["sannu", "na gode", "eh", "a'a", "yaya", "kaka", "ban kwana"],
-    "zul_Latn": ["sawubona", "ngiyabonga", "yebo", "cha", "unjani", "hamba kahle"],
-    "xho_Latn": ["molo", "enkosi", "ewe", "hayi", "unjani", "hamba kakuhle"],
-    "lug_Latn": ["oli otya", "weebale", "yee", "nedda", "ki", "gyendi"],
-    "kin_Latn": ["muraho", "murakoze", "yego", "oya", "amakuru", "bite"],
-    "som_Latn": ["salaam", "mahadsanid", "haa", "maya", "sidee", "tahay"],
-    "amh_Ethi": ["ሰላም", "አመሰግናለሁ", "አዎ", "አይ"],
+WHISPER_TO_NLLB = {
+    "en": "eng_Latn", "sw": "swh_Latn", "fr": "fra_Latn", "de": "deu_Latn",
+    "es": "spa_Latn", "it": "ita_Latn", "pt": "por_Latn", "ar": "arb_Arab",
+    "zh": "zho_Hans", "ja": "jpn_Jpan", "ko": "kor_Kore", "hi": "hin_Deva",
+    "ru": "rus_Cyrl", "nl": "nld_Latn", "tr": "tur_Latn", "vi": "vie_Latn",
+    "ur": "urd_Arab", "yo": "yor_Latn", "ha": "hau_Latn", "ig": "ibo_Latn",
+    "zu": "zul_Latn", "xh": "xho_Latn", "af": "afr_Latn", "so": "som_Latn"
 }
 
-CHAR_RANGES = {
-    "arb_Arab": (0x0600, 0x06FF),
-    "hin_Deva": (0x0900, 0x097F),
-    "zho_Hans": (0x4E00, 0x9FFF),
-    "jpn_Jpan": (0x3040, 0x30FF),
-    "kor_Kore": (0xAC00, 0xD7AF),
-    "rus_Cyrl": (0x0400, 0x04FF),
-    "amh_Ethi": (0x1200, 0x137F),
-}
+class AgentConnectionManager:
+    def __init__(self):
+        self.active = []
+    async def connect(self, ws: WebSocket):
+        await ws.accept()
+        self.active.append(ws)
+    def disconnect(self, ws: WebSocket):
+        if ws in self.active:
+            self.active.remove(ws)
 
-def detect_language(text: str) -> str:
-    """Return a best-guess language code using character ranges + keyword hints."""
-    if not text or not text.strip():
-        return "eng_Latn"
-    
-    # 1. Check character ranges first (CJK, Arabic, Cyrillic, etc.)
-    for code, (start, end) in CHAR_RANGES.items():
-        count = sum(1 for c in text if start <= ord(c) <= end)
-        if count > len(text) * 0.3:
-            return code
-    
-    # 2. Check keyword hints
-    lower = text.lower()
-    scores = {}
-    for lang, keywords in LANG_HINTS.items():
-        score = sum(1 for kw in keywords if kw in lower)
-        if score > 0:
-            scores[lang] = score
-    
-    if scores:
-        return max(scores, key=scores.get)
-    
-    # 3. Default: assume English
-    return "eng_Latn"
+agent_manager = AgentConnectionManager()
+
+async def safe_send(ws: WebSocket, data: dict):
+    try:
+        await ws.send_json(data)
+    except Exception:
+        pass
+
+@app.websocket("/ws/agent")
+async def agent_websocket(ws: WebSocket):
+    await agent_manager.connect(ws)
+    print(f"✅ Agent connected. Total: {len(agent_manager.active)}")
+    session = {
+        "call_active": False,
+        "call_id": None,
+        "target_lang": "eng_Latn",
+        "chunk_count": 0
+    }
+    try:
+        while True:
+            data = await ws.receive_json()
+            msg_type = data.get("type")
+
+            if msg_type == "agent_hello":
+                await safe_send(ws, {
+                    "type": "welcome",
+                    "message": "Connected to LingoLink Agent Console",
+                    "agent_id": data.get("agent_id")
+                })
+
+            elif msg_type == "call_start":
+                session["call_active"] = True
+                session["call_id"] = data.get("call_id")
+                session["target_lang"] = data.get("target_lang", "eng_Latn")
+                session["chunk_count"] = 0
+                await safe_send(ws, {"type": "call_started", "call_id": session["call_id"]})
+                await safe_send(ws, {
+                    "type": "system",
+                    "text": "Loading Whisper model (first call only, ~30s)..."
+                })
+                try:
+                    load_whisper()
+                    await safe_send(ws, {"type": "system", "text": "🎙️ Ready. Speak into your mic."})
+                except Exception as e:
+                    await safe_send(ws, {"type": "error", "message": f"Whisper load failed: {e}"})
+
+            elif msg_type == "call_end":
+                session["call_active"] = False
+                await safe_send(ws, {"type": "call_ended", "call_id": session["call_id"]})
+                session["call_id"] = None
+
+            elif msg_type == "audio_chunk":
+                if not session["call_active"]:
+                    continue
+
+                audio_b64 = data.get("audio")
+                speaker = data.get("speaker", "caller")
+                mime = data.get("mime", "audio/wav")
+                if not audio_b64:
+                    continue
+
+                session["chunk_count"] += 1
+                chunk_id = session["chunk_count"]
+
+                try:
+                    audio_bytes = base64.b64decode(audio_b64)
+                    print(f"📦 Chunk {chunk_id}: {len(audio_bytes)} bytes, mime={mime}")
+                except Exception as e:
+                    print(f"Bad audio chunk: {e}")
+                    await safe_send(ws, {"type": "error", "message": f"Bad audio: {e}"})
+                    continue
+
+                tmp_path = None
+                try:
+                    suffix = ".webm" if "webm" in mime else ".wav"
+                    tmp_fd, tmp_path = tempfile.mkstemp(suffix=suffix)
+                    os.close(tmp_fd)
+                    with open(tmp_path, "wb") as f:
+                        f.write(audio_bytes)
+                    print(f"   saved to {tmp_path}")
+
+                    load_whisper()
+                    result = whisper_model.transcribe(
+                        tmp_path,
+                        fp16=False,
+                        language=None,
+                        task="transcribe",
+                        condition_on_previous_text=False
+                    )
+                    text = result.get("text", "").strip()
+                    detected = result.get("language", "en")
+
+                    if not text or len(text) < 2:
+                        print(f"   chunk {chunk_id}: no speech detected")
+                        continue
+
+                    print(f"✅ Whisper: {text[:80]} (lang: {detected})")
+
+                    await safe_send(ws, {
+                        "type": "transcript",
+                        "speaker": speaker,
+                        "text": text,
+                        "detected_lang": detected,
+                        "chunk": chunk_id
+                    })
+
+                    source_nllb = WHISPER_TO_NLLB.get(detected, "eng_Latn")
+                    target = session["target_lang"]
+
+                    if source_nllb != target and text:
+                        try:
+                            load_models()
+                            translation_tokenizer.src_lang = source_nllb
+                            encoded = translation_tokenizer(text, return_tensors="pt")
+                            tokens = translation_model.generate(
+                                **encoded,
+                                forced_bos_token_id=translation_tokenizer.convert_tokens_to_ids(target),
+                                max_length=256
+                            )
+                            translated = translation_tokenizer.batch_decode(tokens, skip_special_tokens=True)[0]
+
+                            await safe_send(ws, {
+                                "type": "transcript",
+                                "speaker": f"{speaker}_translated",
+                                "text": translated,
+                                "source_lang": source_nllb,
+                                "target_lang": target,
+                                "chunk": chunk_id
+                            })
+                        except Exception as e:
+                            print(f"Translation error: {e}")
+
+                except Exception as e:
+                    print(f"Whisper error: {e}")
+                    await safe_send(ws, {"type": "error", "message": f"Transcription failed: {str(e)[:200]}"})
+                finally:
+                    if tmp_path and os.path.exists(tmp_path):
+                        try:
+                            os.remove(tmp_path)
+                        except:
+                            pass
+
+            else:
+                await safe_send(ws, {"type": "error", "message": f"Unknown type: {msg_type}"})
+
+    except WebSocketDisconnect:
+        agent_manager.disconnect(ws)
+        print(f"❌ Agent disconnected. Total: {len(agent_manager.active)}")
+    except Exception as e:
+        print(f"WebSocket error: {e}")
+        agent_manager.disconnect(ws)
+
+# ===== REQUEST MODELS =====
 
 class SignupRequest(BaseModel):
     name: str
@@ -224,24 +286,15 @@ class TranslationRequest(BaseModel):
     source_lang: str = "eng_Latn"
     target_lang: str = "swh_Latn"
 
-class DetectRequest(BaseModel):
-    text: str
-
 class AdminLoginRequest(BaseModel):
     username: str
     password: str
 
+# ===== ROUTES =====
+
 @app.get("/")
 async def root():
     return {"Hello": "LingoLink AI Backend is running"}
-
-@app.post("/detect_language/")
-async def detect_language_endpoint(request: DetectRequest):
-    detected = detect_language(request.text)
-    return {
-        "detected_lang": detected,
-        "text": request.text
-    }
 
 @app.post("/auth/signup/")
 async def signup(request: SignupRequest, db: Session = Depends(get_db)):
@@ -249,72 +302,39 @@ async def signup(request: SignupRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="All fields are required")
     if len(request.password) < 6:
         raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
-    
     email_lower = request.email.lower().strip()
-    existing = db.query(User).filter(User.email == email_lower).first()
-    if existing:
+    if db.query(User).filter(User.email == email_lower).first():
         raise HTTPException(status_code=400, detail="Email already registered")
-    
-    user = User(
-        name=request.name.strip(),
-        email=email_lower,
-        password=hash_password(request.password)
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    
-    return {
-        "success": True,
-        "user": {"id": user.id, "name": user.name, "email": user.email},
-        "message": "Account created successfully"
-    }
+    user = User(name=request.name.strip(), email=email_lower, password=hash_password(request.password))
+    db.add(user); db.commit(); db.refresh(user)
+    return {"success": True, "user": {"id": user.id, "name": user.name, "email": user.email}, "message": "Account created successfully"}
 
 @app.post("/auth/login/")
 async def login(request: LoginRequest, db: Session = Depends(get_db)):
     if not request.email.strip() or not request.password:
         raise HTTPException(status_code=400, detail="Email and password required")
-    
-    email_lower = request.email.lower().strip()
-    user = db.query(User).filter(User.email == email_lower).first()
-    
+    user = db.query(User).filter(User.email == request.email.lower().strip()).first()
     if not user or user.password != hash_password(request.password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
-    
-    return {
-        "success": True,
-        "user": {"id": user.id, "name": user.name, "email": user.email},
-        "message": "Login successful"
-    }
+    return {"success": True, "user": {"id": user.id, "name": user.name, "email": user.email}, "message": "Login successful"}
 
 @app.post("/auth/update/")
 async def update_profile(request: UpdateProfileRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == request.email.lower().strip()).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
     if request.new_name:
         user.name = request.new_name.strip()
-    
     if request.new_email and request.new_email.lower().strip() != user.email:
-        existing = db.query(User).filter(User.email == request.new_email.lower().strip()).first()
-        if existing:
+        if db.query(User).filter(User.email == request.new_email.lower().strip()).first():
             raise HTTPException(status_code=400, detail="Email already in use")
         user.email = request.new_email.lower().strip()
-    
     if request.new_password:
         if len(request.new_password) < 6:
             raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
         user.password = hash_password(request.new_password)
-    
-    db.commit()
-    db.refresh(user)
-    
-    return {
-        "success": True,
-        "user": {"id": user.id, "name": user.name, "email": user.email},
-        "message": "Profile updated"
-    }
+    db.commit(); db.refresh(user)
+    return {"success": True, "user": {"id": user.id, "name": user.name, "email": user.email}, "message": "Profile updated"}
 
 @app.post("/admin/login/")
 async def admin_login(request: AdminLoginRequest):
@@ -326,244 +346,114 @@ async def admin_login(request: AdminLoginRequest):
 async def admin_stats(admin: bool = Depends(verify_admin), db: Session = Depends(get_db)):
     total_translations = db.query(TranslationRecord).count()
     total_users = db.query(User).count()
-    
     lang_pairs = db.query(
-        TranslationRecord.source_lang,
-        TranslationRecord.target_lang,
+        TranslationRecord.source_lang, TranslationRecord.target_lang,
         func.count(TranslationRecord.id).label('count')
-    ).group_by(
-        TranslationRecord.source_lang,
-        TranslationRecord.target_lang
-    ).order_by(func.count(TranslationRecord.id).desc()).limit(10).all()
-    
-    last_24h = db.query(TranslationRecord).filter(
-        TranslationRecord.created_at >= datetime.utcnow() - timedelta(hours=24)
-    ).count()
-    
-    last_7d = db.query(TranslationRecord).filter(
-        TranslationRecord.created_at >= datetime.utcnow() - timedelta(days=7)
-    ).count()
-    
+    ).group_by(TranslationRecord.source_lang, TranslationRecord.target_lang).order_by(
+        func.count(TranslationRecord.id).desc()
+    ).limit(10).all()
+    last_24h = db.query(TranslationRecord).filter(TranslationRecord.created_at >= datetime.utcnow() - timedelta(hours=24)).count()
+    last_7d = db.query(TranslationRecord).filter(TranslationRecord.created_at >= datetime.utcnow() - timedelta(days=7)).count()
     daily_counts = []
     for i in range(6, -1, -1):
-        day_start = (datetime.utcnow() - timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
-        day_end = day_start + timedelta(days=1)
-        count = db.query(TranslationRecord).filter(
-            TranslationRecord.created_at >= day_start,
-            TranslationRecord.created_at < day_end
-        ).count()
-        daily_counts.append({"date": day_start.strftime("%Y-%m-%d"), "count": count})
-    
+        ds = (datetime.utcnow() - timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
+        de = ds + timedelta(days=1)
+        c = db.query(TranslationRecord).filter(TranslationRecord.created_at >= ds, TranslationRecord.created_at < de).count()
+        daily_counts.append({"date": ds.strftime("%Y-%m-%d"), "count": c})
     return {
-        "total_translations": total_translations,
-        "total_users": total_users,
-        "last_24h": last_24h,
-        "last_7d": last_7d,
-        "daily_counts": daily_counts,
-        "top_language_pairs": [
-            {"source": p[0], "target": p[1], "count": p[2]}
-            for p in lang_pairs
-        ]
+        "total_translations": total_translations, "total_users": total_users,
+        "last_24h": last_24h, "last_7d": last_7d, "daily_counts": daily_counts,
+        "top_language_pairs": [{"source": p[0], "target": p[1], "count": p[2]} for p in lang_pairs]
     }
 
 @app.get("/admin/users/")
 async def admin_users(admin: bool = Depends(verify_admin), db: Session = Depends(get_db)):
     users = db.query(User).order_by(User.created_at.desc()).all()
-    return {
-        "total": len(users),
-        "users": [
-            {"id": u.id, "name": u.name, "email": u.email, "created_at": u.created_at.isoformat() if u.created_at else None}
-            for u in users
-        ]
-    }
+    return {"total": len(users), "users": [{"id": u.id, "name": u.name, "email": u.email, "created_at": u.created_at.isoformat() if u.created_at else None} for u in users]}
 
 @app.get("/admin/translations/")
-async def admin_translations(
-    admin: bool = Depends(verify_admin),
-    db: Session = Depends(get_db),
-    limit: int = 50,
-    offset: int = 0
-):
-    records = db.query(TranslationRecord).order_by(
-        TranslationRecord.created_at.desc()
-    ).offset(offset).limit(limit).all()
-    
-    return {
-        "total": db.query(TranslationRecord).count(),
-        "records": [
-            {"id": r.id, "source_lang": r.source_lang, "target_lang": r.target_lang,
-             "source_text": r.source_text, "translated_text": r.translated_text,
-             "created_at": r.created_at.isoformat() if r.created_at else None}
-            for r in records
-        ]
-    }
+async def admin_translations(admin: bool = Depends(verify_admin), db: Session = Depends(get_db), limit: int = 50, offset: int = 0):
+    records = db.query(TranslationRecord).order_by(TranslationRecord.created_at.desc()).offset(offset).limit(limit).all()
+    return {"total": db.query(TranslationRecord).count(), "records": [
+        {"id": r.id, "source_lang": r.source_lang, "target_lang": r.target_lang,
+         "source_text": r.source_text, "translated_text": r.translated_text,
+         "created_at": r.created_at.isoformat() if r.created_at else None} for r in records]}
 
 @app.delete("/admin/translations/{record_id}")
-async def admin_delete_translation(
-    record_id: int,
-    admin: bool = Depends(verify_admin),
-    db: Session = Depends(get_db)
-):
-    record = db.query(TranslationRecord).filter(TranslationRecord.id == record_id).first()
-    if not record:
+async def admin_delete_translation(record_id: int, admin: bool = Depends(verify_admin), db: Session = Depends(get_db)):
+    r = db.query(TranslationRecord).filter(TranslationRecord.id == record_id).first()
+    if not r:
         raise HTTPException(status_code=404, detail="Record not found")
-    db.delete(record)
-    db.commit()
+    db.delete(r); db.commit()
     return {"message": "Record deleted"}
 
 @app.delete("/admin/translations/")
-async def admin_clear_translations(
-    admin: bool = Depends(verify_admin),
-    db: Session = Depends(get_db)
-):
-    count = db.query(TranslationRecord).delete()
-    db.commit()
-    return {"message": f"Deleted {count} records"}
+async def admin_clear_translations(admin: bool = Depends(verify_admin), db: Session = Depends(get_db)):
+    c = db.query(TranslationRecord).delete(); db.commit()
+    return {"message": f"Deleted {c} records"}
 
 @app.post("/translate_text/")
 async def translate_text(request: TranslationRequest, db: Session = Depends(get_db)):
     load_models()
-    start_time = time.time()
-
-    # Auto-detect if requested
-    source_lang = request.source_lang
-    detected = False
-    if source_lang == "auto":
-        source_lang = detect_language(request.text)
-        detected = True
-
-    translation_tokenizer.src_lang = source_lang
-    encoded_input = translation_tokenizer(request.text, return_tensors="pt")
-    generated_tokens = translation_model.generate(
-        **encoded_input,
-        forced_bos_token_id=translation_tokenizer.convert_tokens_to_ids(request.target_lang),
-        max_length=128
-    )
-    translated_text = translation_tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)[0]
-
+    start = time.time()
+    translation_tokenizer.src_lang = request.source_lang
+    enc = translation_tokenizer(request.text, return_tensors="pt")
+    tokens = translation_model.generate(**enc, forced_bos_token_id=translation_tokenizer.convert_tokens_to_ids(request.target_lang), max_length=128)
+    translated = translation_tokenizer.batch_decode(tokens, skip_special_tokens=True)[0]
     tts_filename = f"tts_{int(time.time())}.mp3"
-    tts_output_path = f"data/audio/{tts_filename}"
     tts_url = None
     try:
         voice = get_voice(request.target_lang)
-        communicate = edge_tts.Communicate(translated_text, voice)
-        await communicate.save(tts_output_path)
+        communicate = edge_tts.Communicate(translated, voice)
+        await communicate.save(f"data/audio/{tts_filename}")
         tts_url = f"/data/audio/{tts_filename}"
     except Exception as e:
         print(f"TTS error: {e}")
-
-    record = TranslationRecord(
-        source_lang=source_lang,
-        target_lang=request.target_lang,
-        source_text=request.text,
-        translated_text=translated_text
-    )
-    db.add(record)
-    db.commit()
-    db.refresh(record)
-
-    return {
-        "id": record.id,
-        "source_text": request.text,
-        "translated_text": translated_text,
-        "source_lang": source_lang,
-        "detected": detected,
-        "tts_file_path": tts_url,
-        "latency_seconds": round(time.time() - start_time, 2),
-        "message": "Text translation successful"
-    }
+    rec = TranslationRecord(source_lang=request.source_lang, target_lang=request.target_lang, source_text=request.text, translated_text=translated)
+    db.add(rec); db.commit(); db.refresh(rec)
+    return {"id": rec.id, "source_text": request.text, "translated_text": translated,
+            "tts_file_path": tts_url, "latency_seconds": round(time.time() - start, 2),
+            "message": "Text translation successful"}
 
 @app.post("/translate_audio/")
-async def translate_audio(
-    file: UploadFile = File(...),
-    source_lang: str = "eng_Latn",
-    target_lang: str = "swh_Latn",
-    db: Session = Depends(get_db)
-):
-    load_models()
-    load_whisper()
-    start_time = time.time()
-
-    file_location = f"data/audio/{file.filename}"
-    with open(file_location, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    # Whisper auto-detects language
-    stt_result = whisper_model.transcribe(file_location)
-    source_text = stt_result["text"].strip()
-    whisper_detected = stt_result.get("language", "en")
-    
-    # Map Whisper's language code to NLLB code
-    WHISPER_TO_NLLB = {
-        "en": "eng_Latn", "sw": "swh_Latn", "fr": "fra_Latn", "de": "deu_Latn",
-        "es": "spa_Latn", "it": "ita_Latn", "pt": "por_Latn", "ar": "arb_Arab",
-        "zh": "zho_Hans", "ja": "jpn_Jpan", "ko": "kor_Kore", "hi": "hin_Deva",
-        "ru": "rus_Cyrl", "nl": "nld_Latn", "tr": "tur_Latn", "vi": "vie_Latn",
-        "ur": "urd_Arab", "yo": "yor_Latn", "ha": "hau_Latn", "ig": "ibo_Latn",
-        "zu": "zul_Latn", "xh": "xho_Latn", "af": "afr_Latn", "so": "som_Latn"
-    }
-    
-    detected = False
-    if source_lang == "auto":
-        source_lang = WHISPER_TO_NLLB.get(whisper_detected, "eng_Latn")
-        detected = True
-
+async def translate_audio(file: UploadFile = File(...), source_lang: str = "eng_Latn", target_lang: str = "swh_Latn", db: Session = Depends(get_db)):
+    load_models(); load_whisper()
+    start = time.time()
+    fl = f"data/audio/{file.filename}"
+    with open(fl, "wb") as buf:
+        shutil.copyfileobj(file.file, buf)
+    stt = whisper_model.transcribe(fl)
+    src_text = stt["text"].strip()
     translation_tokenizer.src_lang = source_lang
-    encoded_input = translation_tokenizer(source_text, return_tensors="pt")
-    generated_tokens = translation_model.generate(
-        **encoded_input,
-        forced_bos_token_id=translation_tokenizer.convert_tokens_to_ids(target_lang),
-        max_length=128
-    )
-    translated_text = translation_tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)[0]
-
+    enc = translation_tokenizer(src_text, return_tensors="pt")
+    tokens = translation_model.generate(**enc, forced_bos_token_id=translation_tokenizer.convert_tokens_to_ids(target_lang), max_length=128)
+    translated = translation_tokenizer.batch_decode(tokens, skip_special_tokens=True)[0]
     tts_filename = f"{file.filename}_translated_{int(time.time())}.mp3"
-    tts_output_path = f"data/audio/{tts_filename}"
     tts_url = None
     try:
         voice = get_voice(target_lang)
-        communicate = edge_tts.Communicate(translated_text, voice)
-        await communicate.save(tts_output_path)
+        communicate = edge_tts.Communicate(translated, voice)
+        await communicate.save(f"data/audio/{tts_filename}")
         tts_url = f"/data/audio/{tts_filename}"
     except Exception as e:
         print(f"TTS error: {e}")
-
-    record = TranslationRecord(
-        source_lang=source_lang,
-        target_lang=target_lang,
-        source_text=source_text,
-        translated_text=translated_text
-    )
-    db.add(record)
-    db.commit()
-    db.refresh(record)
-
-    return {
-        "id": record.id,
-        "source_text": source_text,
-        "translated_text": translated_text,
-        "source_lang": source_lang,
-        "detected": detected,
-        "tts_file_path": tts_url,
-        "latency_seconds": round(time.time() - start_time, 2),
-        "message": "Audio translation successful"
-    }
+    rec = TranslationRecord(source_lang=source_lang, target_lang=target_lang, source_text=src_text, translated_text=translated)
+    db.add(rec); db.commit(); db.refresh(rec)
+    return {"id": rec.id, "source_text": src_text, "translated_text": translated,
+            "tts_file_path": tts_url, "latency_seconds": round(time.time() - start, 2),
+            "message": "Audio translation successful"}
 
 @app.get("/history/")
 async def get_history(db: Session = Depends(get_db), limit: int = 10):
     records = db.query(TranslationRecord).order_by(TranslationRecord.created_at.desc()).limit(limit).all()
-    return [
-        {"id": r.id, "source_lang": r.source_lang, "target_lang": r.target_lang,
-         "source_text": r.source_text, "translated_text": r.translated_text,
-         "created_at": r.created_at.isoformat() if r.created_at else None}
-        for r in records
-    ]
+    return [{"id": r.id, "source_lang": r.source_lang, "target_lang": r.target_lang,
+             "source_text": r.source_text, "translated_text": r.translated_text,
+             "created_at": r.created_at.isoformat() if r.created_at else None} for r in records]
 
 @app.delete("/history/{record_id}")
 async def delete_history(record_id: int, db: Session = Depends(get_db)):
-    record = db.query(TranslationRecord).filter(TranslationRecord.id == record_id).first()
-    if not record:
+    r = db.query(TranslationRecord).filter(TranslationRecord.id == record_id).first()
+    if not r:
         raise HTTPException(status_code=404, detail="Record not found")
-    db.delete(record)
-    db.commit()
+    db.delete(r); db.commit()
     return {"message": "Record deleted"}
