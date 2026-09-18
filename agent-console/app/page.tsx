@@ -325,7 +325,7 @@ export default function AgentDashboard() {
             })
           );
         }
-      }, 4000);
+      }, 6000);
 
       setIsRecording(true);
     } catch (err) {

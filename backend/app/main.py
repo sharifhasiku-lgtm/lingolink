@@ -12,6 +12,7 @@ import os
 import hashlib
 import base64
 import tempfile
+import numpy as np
 from datetime import datetime, timedelta
 from pydantic import BaseModel
 from typing import Optional
@@ -49,12 +50,13 @@ def load_models():
         print("NLLB-200 loaded!")
 
 def load_whisper():
+    """Load Whisper 'small' model — much more accurate than 'base' for multilingual."""
     global whisper_model
     if whisper_model is None:
-        print("Loading Whisper model...")
+        print("Loading Whisper 'small' model (multilingual)...")
         import whisper
-        whisper_model = whisper.load_model("base")
-        print("Whisper loaded!")
+        whisper_model = whisper.load_model("small")
+        print("Whisper 'small' loaded!")
 
 VOICE_MAP = {
     "eng_Latn": "en-US-AriaNeural",
@@ -71,6 +73,16 @@ VOICE_MAP = {
     "hin_Deva": "hi-IN-SwaraNeural",
     "rus_Cyrl": "ru-RU-SvetlanaNeural",
     "nld_Latn": "nl-NL-ColetteNeural",
+    "tur_Latn": "tr-TR-EmelNeural",
+    "vie_Latn": "vi-VN-HoaiMyNeural",
+    "urd_Arab": "ur-PK-UzmaNeural",
+    "yor_Latn": "yo-NG-EzinneNeural",
+    "hau_Latn": "ha-NG-EzinneNeural",
+    "ibo_Latn": "ig-NG-EzinneNeural",
+    "zul_Latn": "zu-ZA-LeahNeural",
+    "xho_Latn": "xh-ZA-LeahNeural",
+    "afr_Latn": "af-ZA-AdriNeural",
+    "som_Latn": "so-SO-UbaxNeural",
 }
 
 def get_voice(lang_code):
@@ -93,14 +105,38 @@ def verify_admin(authorization: Optional[str] = Header(None)):
 
 # ===== WEBSOCKET FOR AGENT CONSOLE =====
 
+# Whisper language code -> NLLB language code
 WHISPER_TO_NLLB = {
     "en": "eng_Latn", "sw": "swh_Latn", "fr": "fra_Latn", "de": "deu_Latn",
     "es": "spa_Latn", "it": "ita_Latn", "pt": "por_Latn", "ar": "arb_Arab",
     "zh": "zho_Hans", "ja": "jpn_Jpan", "ko": "kor_Kore", "hi": "hin_Deva",
     "ru": "rus_Cyrl", "nl": "nld_Latn", "tr": "tur_Latn", "vi": "vie_Latn",
     "ur": "urd_Arab", "yo": "yor_Latn", "ha": "hau_Latn", "ig": "ibo_Latn",
-    "zu": "zul_Latn", "xh": "xho_Latn", "af": "afr_Latn", "so": "som_Latn"
+    "zu": "zul_Latn", "xh": "xho_Latn", "af": "afr_Latn", "so": "som_Latn",
+    "am": "amh_Ethi", "om": "gaz_Latn", "rw": "kin_Latn", "ln": "lin_Latn",
+    "lg": "lug_Latn", "ny": "nya_Latn", "sn": "sna_Latn", "st": "sot_Latn",
+    "tn": "tsn_Latn", "ts": "tso_Latn", "wo": "wol_Latn", "ff": "fuv_Latn",
+    "mg": "plt_Latn", "ne": "npi_Deva", "si": "sin_Sinh", "km": "khm_Khmr",
+    "lo": "lao_Laoo", "my": "mya_Mymr", "fa": "pes_Arab", "he": "heb_Hebr",
+    "th": "tha_Thai", "id": "ind_Latn", "ms": "zsm_Latn", "tl": "tgl_Latn",
+    "uk": "ukr_Cyrl", "pl": "pol_Latn", "ro": "ron_Latn", "cs": "ces_Latn",
+    "el": "ell_Grek", "hu": "hun_Latn", "sv": "swe_Latn", "da": "dan_Latn",
+    "fi": "fin_Latn", "no": "nob_Latn", "ca": "cat_Latn", "gl": "glg_Latn",
+    "bg": "bul_Cyrl", "hr": "hrv_Latn", "sr": "srp_Cyrl", "sk": "slk_Latn",
+    "sl": "slv_Latn", "lt": "lit_Latn", "lv": "lvs_Latn", "et": "est_Latn",
 }
+
+def pcm_to_float32(pcm_bytes: bytes) -> np.ndarray:
+    """Convert raw PCM 16-bit mono bytes to float32 [-1, 1]."""
+    audio_int16 = np.frombuffer(pcm_bytes, dtype=np.int16)
+    return audio_int16.astype(np.float32) / 32768.0
+
+def is_silent(audio: np.ndarray, threshold: float = 0.008) -> bool:
+    """Check if audio is mostly silence (RMS below threshold)."""
+    if len(audio) == 0:
+        return True
+    rms = float(np.sqrt(np.mean(audio ** 2)))
+    return rms < threshold
 
 class AgentConnectionManager:
     def __init__(self):
@@ -150,11 +186,11 @@ async def agent_websocket(ws: WebSocket):
                 await safe_send(ws, {"type": "call_started", "call_id": session["call_id"]})
                 await safe_send(ws, {
                     "type": "system",
-                    "text": "Loading Whisper model (first call only, ~30s)..."
+                    "text": "Loading Whisper 'small' model (first call only, ~60s)..."
                 })
                 try:
                     load_whisper()
-                    await safe_send(ws, {"type": "system", "text": "🎙️ Ready. Speak into your mic."})
+                    await safe_send(ws, {"type": "system", "text": "🎙️ Ready. Speak any language into your mic."})
                 except Exception as e:
                     await safe_send(ws, {"type": "error", "message": f"Whisper load failed: {e}"})
 
@@ -178,37 +214,71 @@ async def agent_websocket(ws: WebSocket):
 
                 try:
                     audio_bytes = base64.b64decode(audio_b64)
-                    print(f"📦 Chunk {chunk_id}: {len(audio_bytes)} bytes, mime={mime}")
                 except Exception as e:
                     print(f"Bad audio chunk: {e}")
                     await safe_send(ws, {"type": "error", "message": f"Bad audio: {e}"})
                     continue
 
+                # If it's a WAV, skip the 44-byte header
+                pcm_bytes = audio_bytes
+                if audio_bytes[:4] == b'RIFF':
+                    pcm_bytes = audio_bytes[44:]
+
+                pcm_float = pcm_to_float32(pcm_bytes)
+
+                print(f"📦 Chunk {chunk_id}: {len(audio_bytes)} bytes, {len(pcm_float)} samples")
+
+                # Silence detection
+                if is_silent(pcm_float):
+                    print(f"   chunk {chunk_id}: silent, skipped")
+                    continue
+
+                # Save as WAV for Whisper
                 tmp_path = None
                 try:
-                    suffix = ".webm" if "webm" in mime else ".wav"
-                    tmp_fd, tmp_path = tempfile.mkstemp(suffix=suffix)
+                    tmp_fd, tmp_path = tempfile.mkstemp(suffix=".wav")
                     os.close(tmp_fd)
-                    with open(tmp_path, "wb") as f:
-                        f.write(audio_bytes)
-                    print(f"   saved to {tmp_path}")
 
+                    # Write WAV file from PCM float
+                    import wave
+                    with wave.open(tmp_path, 'wb') as wf:
+                        wf.setnchannels(1)
+                        wf.setsampwidth(2)  # 16-bit
+                        wf.setframerate(16000)
+                        wf.writeframes((pcm_float * 32767).astype(np.int16).tobytes())
+
+                    # Transcribe with Whisper (multilingual, auto-detect)
                     load_whisper()
                     result = whisper_model.transcribe(
                         tmp_path,
                         fp16=False,
-                        language=None,
+                        language=None,   # auto-detect any language
                         task="transcribe",
-                        condition_on_previous_text=False
+                        condition_on_previous_text=False,
+                        no_speech_threshold=0.6,
+                        logprob_threshold=-1.0,
+                        compression_ratio_threshold=2.4,
                     )
                     text = result.get("text", "").strip()
                     detected = result.get("language", "en")
 
-                    if not text or len(text) < 2:
-                        print(f"   chunk {chunk_id}: no speech detected")
+                    # Filter garbage
+                    if not text or len(text) < 3:
+                        print(f"   chunk {chunk_id}: no usable text")
                         continue
 
-                    print(f"✅ Whisper: {text[:80]} (lang: {detected})")
+                    # Filter known Whisper hallucinations on silence
+                    lower = text.lower()
+                    hallucinations = [
+                        "thank you.", "thanks for watching", "subscribe",
+                        "[music]", "[applause]", "you", "bye.", "the end",
+                        "please subscribe", "..."
+                    ]
+                    if any(h == lower for h in hallucinations):
+                        print(f"   chunk {chunk_id}: hallucination filtered")
+                        continue
+
+                    print(f"✅ Whisper: '{text[:100]}' (lang: {detected})")
 
                     await safe_send(ws, {
                         "type": "transcript",
@@ -218,10 +288,10 @@ async def agent_websocket(ws: WebSocket):
                         "chunk": chunk_id
                     })
 
-                    source_nllb = WHISPER_TO_NLLB.get(detected, "eng_Latn")
+                    source_nllb = WHISPER_TO_NLLB.get(detected)
                     target = session["target_lang"]
 
-                    if source_nllb != target and text:
+                    if source_nllb and source_nllb != target:
                         try:
                             load_models()
                             translation_tokenizer.src_lang = source_nllb
@@ -422,7 +492,7 @@ async def translate_audio(file: UploadFile = File(...), source_lang: str = "eng_
     fl = f"data/audio/{file.filename}"
     with open(fl, "wb") as buf:
         shutil.copyfileobj(file.file, buf)
-    stt = whisper_model.transcribe(fl)
+    stt = whisper_model.transcribe(fl, fp16=False)
     src_text = stt["text"].strip()
     translation_tokenizer.src_lang = source_lang
     enc = translation_tokenizer(src_text, return_tensors="pt")
