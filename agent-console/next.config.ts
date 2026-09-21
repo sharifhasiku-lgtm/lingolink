@@ -2,11 +2,13 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: [
-    "passes-omaha-love-dogs.trycloudflare.com",
     "*.trycloudflare.com",
     "localhost",
-    "192.168.1.7",
+    "127.0.0.1",
   ],
+  experimental: {
+    proxyTimeout: 600000, // 10 minutes — allows long dubbing jobs
+  },
 };
 
 export default nextConfig;

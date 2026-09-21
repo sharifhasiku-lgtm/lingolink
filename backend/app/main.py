@@ -12,12 +12,23 @@ import os
 import hashlib
 import base64
 import tempfile
+import subprocess
+import uuid
+import threading
+import wave
 import numpy as np
 from datetime import datetime, timedelta
 from pydantic import BaseModel
 from typing import Optional
 
 from app.models import get_db, User, TranslationRecord, engine, Base
+
+# ===== MEMORY OPTIMIZATION FOR 8GB PCs =====
+os.environ["OMP_NUM_THREADS"] = "2"
+os.environ["MKL_NUM_THREADS"] = "2"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+os.environ["OPENBLAS_NUM_THREADS"] = "2"
+torch.set_num_threads(2)
 
 Base.metadata.create_all(bind=engine)
 
@@ -32,7 +43,11 @@ app.add_middleware(
 )
 
 os.makedirs("data/audio", exist_ok=True)
+os.makedirs("data/videos", exist_ok=True)
+os.makedirs("data/dubbed", exist_ok=True)
 app.mount("/data/audio", StaticFiles(directory="data/audio"), name="audio")
+app.mount("/data/videos", StaticFiles(directory="data/videos"), name="videos")
+app.mount("/data/dubbed", StaticFiles(directory="data/dubbed"), name="dubbed")
 
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "lingolink256"
@@ -40,23 +55,46 @@ ADMIN_PASSWORD = "lingolink256"
 translation_tokenizer = None
 translation_model = None
 whisper_model = None
+_models_loaded = False
 
 def load_models():
+    """Load NLLB-200 (smallest translation model)."""
     global translation_tokenizer, translation_model
     if translation_model is None:
-        print("Loading NLLB-200 model...")
+        print("Loading NLLB-200 distilled 600M...", flush=True)
         translation_tokenizer = AutoTokenizer.from_pretrained("facebook/nllb-200-distilled-600M")
         translation_model = AutoModelForSeq2SeqLM.from_pretrained("facebook/nllb-200-distilled-600M")
-        print("NLLB-200 loaded!")
+        print("✅ NLLB-200 loaded!", flush=True)
 
 def load_whisper():
-    """Load Whisper 'small' model — much more accurate than 'base' for multilingual."""
+    """Load Whisper 'base' — half the size of 'small', fits in 8GB PCs."""
     global whisper_model
     if whisper_model is None:
-        print("Loading Whisper 'small' model (multilingual)...")
+        print("Loading Whisper 'base' (140MB)...", flush=True)
         import whisper
-        whisper_model = whisper.load_model("small")
-        print("Whisper 'small' loaded!")
+        whisper_model = whisper.load_model("base")
+        print("✅ Whisper 'base' loaded!", flush=True)
+
+# ===== PRELOAD MODELS ON STARTUP =====
+def _preload_models():
+    try:
+        print("🚀 Preloading NLLB-200...", flush=True)
+        load_models()
+    except Exception as e:
+        print(f"❌ NLLB preload error: {e}", flush=True)
+    try:
+        print("🚀 Preloading Whisper base...", flush=True)
+        load_whisper()
+    except Exception as e:
+        print(f"❌ Whisper preload error: {e}", flush=True)
+    global _models_loaded
+    _models_loaded = True
+    print("✅ All models preloaded. Backend ready.", flush=True)
+
+@app.on_event("startup")
+async def preload_on_startup():
+    print("🎬 Startup: kicking off background model preload", flush=True)
+    threading.Thread(target=_preload_models, daemon=True).start()
 
 VOICE_MAP = {
     "eng_Latn": "en-US-AriaNeural",
@@ -105,7 +143,6 @@ def verify_admin(authorization: Optional[str] = Header(None)):
 
 # ===== WEBSOCKET FOR AGENT CONSOLE =====
 
-# Whisper language code -> NLLB language code
 WHISPER_TO_NLLB = {
     "en": "eng_Latn", "sw": "swh_Latn", "fr": "fra_Latn", "de": "deu_Latn",
     "es": "spa_Latn", "it": "ita_Latn", "pt": "por_Latn", "ar": "arb_Arab",
@@ -113,26 +150,13 @@ WHISPER_TO_NLLB = {
     "ru": "rus_Cyrl", "nl": "nld_Latn", "tr": "tur_Latn", "vi": "vie_Latn",
     "ur": "urd_Arab", "yo": "yor_Latn", "ha": "hau_Latn", "ig": "ibo_Latn",
     "zu": "zul_Latn", "xh": "xho_Latn", "af": "afr_Latn", "so": "som_Latn",
-    "am": "amh_Ethi", "om": "gaz_Latn", "rw": "kin_Latn", "ln": "lin_Latn",
-    "lg": "lug_Latn", "ny": "nya_Latn", "sn": "sna_Latn", "st": "sot_Latn",
-    "tn": "tsn_Latn", "ts": "tso_Latn", "wo": "wol_Latn", "ff": "fuv_Latn",
-    "mg": "plt_Latn", "ne": "npi_Deva", "si": "sin_Sinh", "km": "khm_Khmr",
-    "lo": "lao_Laoo", "my": "mya_Mymr", "fa": "pes_Arab", "he": "heb_Hebr",
-    "th": "tha_Thai", "id": "ind_Latn", "ms": "zsm_Latn", "tl": "tgl_Latn",
-    "uk": "ukr_Cyrl", "pl": "pol_Latn", "ro": "ron_Latn", "cs": "ces_Latn",
-    "el": "ell_Grek", "hu": "hun_Latn", "sv": "swe_Latn", "da": "dan_Latn",
-    "fi": "fin_Latn", "no": "nob_Latn", "ca": "cat_Latn", "gl": "glg_Latn",
-    "bg": "bul_Cyrl", "hr": "hrv_Latn", "sr": "srp_Cyrl", "sk": "slk_Latn",
-    "sl": "slv_Latn", "lt": "lit_Latn", "lv": "lvs_Latn", "et": "est_Latn",
 }
 
 def pcm_to_float32(pcm_bytes: bytes) -> np.ndarray:
-    """Convert raw PCM 16-bit mono bytes to float32 [-1, 1]."""
     audio_int16 = np.frombuffer(pcm_bytes, dtype=np.int16)
     return audio_int16.astype(np.float32) / 32768.0
 
 def is_silent(audio: np.ndarray, threshold: float = 0.008) -> bool:
-    """Check if audio is mostly silence (RMS below threshold)."""
     if len(audio) == 0:
         return True
     rms = float(np.sqrt(np.mean(audio ** 2)))
@@ -159,24 +183,15 @@ async def safe_send(ws: WebSocket, data: dict):
 @app.websocket("/ws/agent")
 async def agent_websocket(ws: WebSocket):
     await agent_manager.connect(ws)
-    print(f"✅ Agent connected. Total: {len(agent_manager.active)}")
-    session = {
-        "call_active": False,
-        "call_id": None,
-        "target_lang": "eng_Latn",
-        "chunk_count": 0
-    }
+    print(f"✅ Agent connected. Total: {len(agent_manager.active)}", flush=True)
+    session = {"call_active": False, "call_id": None, "target_lang": "eng_Latn", "chunk_count": 0}
     try:
         while True:
             data = await ws.receive_json()
             msg_type = data.get("type")
 
             if msg_type == "agent_hello":
-                await safe_send(ws, {
-                    "type": "welcome",
-                    "message": "Connected to LingoLink Agent Console",
-                    "agent_id": data.get("agent_id")
-                })
+                await safe_send(ws, {"type": "welcome", "message": "Connected", "agent_id": data.get("agent_id")})
 
             elif msg_type == "call_start":
                 session["call_active"] = True
@@ -184,13 +199,10 @@ async def agent_websocket(ws: WebSocket):
                 session["target_lang"] = data.get("target_lang", "eng_Latn")
                 session["chunk_count"] = 0
                 await safe_send(ws, {"type": "call_started", "call_id": session["call_id"]})
-                await safe_send(ws, {
-                    "type": "system",
-                    "text": "Loading Whisper 'small' model (first call only, ~60s)..."
-                })
+                await safe_send(ws, {"type": "system", "text": "Loading Whisper base (~30s)..."})
                 try:
                     load_whisper()
-                    await safe_send(ws, {"type": "system", "text": "🎙️ Ready. Speak any language into your mic."})
+                    await safe_send(ws, {"type": "system", "text": "🎙️ Ready. Speak any language."})
                 except Exception as e:
                     await safe_send(ws, {"type": "error", "message": f"Whisper load failed: {e}"})
 
@@ -202,120 +214,73 @@ async def agent_websocket(ws: WebSocket):
             elif msg_type == "audio_chunk":
                 if not session["call_active"]:
                     continue
-
                 audio_b64 = data.get("audio")
                 speaker = data.get("speaker", "caller")
-                mime = data.get("mime", "audio/wav")
                 if not audio_b64:
                     continue
-
                 session["chunk_count"] += 1
                 chunk_id = session["chunk_count"]
-
                 try:
                     audio_bytes = base64.b64decode(audio_b64)
                 except Exception as e:
-                    print(f"Bad audio chunk: {e}")
                     await safe_send(ws, {"type": "error", "message": f"Bad audio: {e}"})
                     continue
 
-                # If it's a WAV, skip the 44-byte header
-                pcm_bytes = audio_bytes
-                if audio_bytes[:4] == b'RIFF':
-                    pcm_bytes = audio_bytes[44:]
-
+                pcm_bytes = audio_bytes[44:] if audio_bytes[:4] == b'RIFF' else audio_bytes
                 pcm_float = pcm_to_float32(pcm_bytes)
+                print(f"📦 Chunk {chunk_id}: {len(audio_bytes)} bytes", flush=True)
 
-                print(f"📦 Chunk {chunk_id}: {len(audio_bytes)} bytes, {len(pcm_float)} samples")
-
-                # Silence detection
                 if is_silent(pcm_float):
-                    print(f"   chunk {chunk_id}: silent, skipped")
+                    print(f"   chunk {chunk_id}: silent, skipped", flush=True)
                     continue
 
-                # Save as WAV for Whisper
                 tmp_path = None
                 try:
                     tmp_fd, tmp_path = tempfile.mkstemp(suffix=".wav")
                     os.close(tmp_fd)
-
-                    # Write WAV file from PCM float
-                    import wave
                     with wave.open(tmp_path, 'wb') as wf:
                         wf.setnchannels(1)
-                        wf.setsampwidth(2)  # 16-bit
+                        wf.setsampwidth(2)
                         wf.setframerate(16000)
                         wf.writeframes((pcm_float * 32767).astype(np.int16).tobytes())
 
-                    # Transcribe with Whisper (multilingual, auto-detect)
                     load_whisper()
-                    result = whisper_model.transcribe(
-                        tmp_path,
-                        fp16=False,
-                        language=None,   # auto-detect any language
-                        task="transcribe",
-                        condition_on_previous_text=False,
-                        no_speech_threshold=0.6,
-                        logprob_threshold=-1.0,
-                        compression_ratio_threshold=2.4,
-                    )
+                    result = whisper_model.transcribe(tmp_path, fp16=False, language=None, task="transcribe",
+                        condition_on_previous_text=False, no_speech_threshold=0.6,
+                        logprob_threshold=-1.0, compression_ratio_threshold=2.4)
                     text = result.get("text", "").strip()
                     detected = result.get("language", "en")
 
-                    # Filter garbage
                     if not text or len(text) < 3:
-                        print(f"   chunk {chunk_id}: no usable text")
                         continue
 
-                    # Filter known Whisper hallucinations on silence
                     lower = text.lower()
-                    hallucinations = [
-                        "thank you.", "thanks for watching", "subscribe",
-                        "[music]", "[applause]", "you", "bye.", "the end",
-                        "please subscribe", "..."
-                    ]
+                    hallucinations = ["thank you.", "thanks for watching", "subscribe",
+                        "[music]", "[applause]", "you", "bye.", "the end", "please subscribe", "..."]
                     if any(h == lower for h in hallucinations):
-                        print(f"   chunk {chunk_id}: hallucination filtered")
                         continue
 
-                    print(f"✅ Whisper: '{text[:100]}' (lang: {detected})")
-
-                    await safe_send(ws, {
-                        "type": "transcript",
-                        "speaker": speaker,
-                        "text": text,
-                        "detected_lang": detected,
-                        "chunk": chunk_id
-                    })
+                    print(f"✅ Whisper: '{text[:100]}' (lang: {detected})", flush=True)
+                    await safe_send(ws, {"type": "transcript", "speaker": speaker, "text": text,
+                        "detected_lang": detected, "chunk": chunk_id})
 
                     source_nllb = WHISPER_TO_NLLB.get(detected)
                     target = session["target_lang"]
-
                     if source_nllb and source_nllb != target:
                         try:
                             load_models()
                             translation_tokenizer.src_lang = source_nllb
                             encoded = translation_tokenizer(text, return_tensors="pt")
-                            tokens = translation_model.generate(
-                                **encoded,
+                            tokens = translation_model.generate(**encoded,
                                 forced_bos_token_id=translation_tokenizer.convert_tokens_to_ids(target),
-                                max_length=256
-                            )
+                                max_length=256)
                             translated = translation_tokenizer.batch_decode(tokens, skip_special_tokens=True)[0]
-
-                            await safe_send(ws, {
-                                "type": "transcript",
-                                "speaker": f"{speaker}_translated",
-                                "text": translated,
-                                "source_lang": source_nllb,
-                                "target_lang": target,
-                                "chunk": chunk_id
-                            })
+                            await safe_send(ws, {"type": "transcript", "speaker": f"{speaker}_translated",
+                                "text": translated, "source_lang": source_nllb, "target_lang": target, "chunk": chunk_id})
                         except Exception as e:
-                            print(f"Translation error: {e}")
-
+                            print(f"Translation error: {e}", flush=True)
                 except Exception as e:
-                    print(f"Whisper error: {e}")
+                    print(f"Whisper error: {e}", flush=True)
                     await safe_send(ws, {"type": "error", "message": f"Transcription failed: {str(e)[:200]}"})
                 finally:
                     if tmp_path and os.path.exists(tmp_path):
@@ -323,16 +288,137 @@ async def agent_websocket(ws: WebSocket):
                             os.remove(tmp_path)
                         except:
                             pass
-
             else:
                 await safe_send(ws, {"type": "error", "message": f"Unknown type: {msg_type}"})
 
     except WebSocketDisconnect:
         agent_manager.disconnect(ws)
-        print(f"❌ Agent disconnected. Total: {len(agent_manager.active)}")
+        print(f"❌ Agent disconnected. Total: {len(agent_manager.active)}", flush=True)
     except Exception as e:
-        print(f"WebSocket error: {e}")
+        print(f"WebSocket error: {e}", flush=True)
         agent_manager.disconnect(ws)
+
+# ===== DUBBING PIPELINE =====
+
+def run_ffmpeg_extract_audio(video_path: str, audio_out: str) -> bool:
+    try:
+        cmd = ["ffmpeg", "-y", "-i", video_path, "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", audio_out]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        if result.returncode != 0:
+            print(f"FFmpeg extract error: {result.stderr[:500]}", flush=True)
+            return False
+        return True
+    except Exception as e:
+        print(f"FFmpeg extract exception: {e}", flush=True)
+        return False
+
+def run_ffmpeg_mux(video_path: str, dubbed_audio: str, output_path: str) -> bool:
+    try:
+        cmd = ["ffmpeg", "-y", "-i", video_path, "-i", dubbed_audio,
+               "-c:v", "copy", "-c:a", "aac",
+               "-map", "0:v:0", "-map", "1:a:0", "-shortest", output_path]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        if result.returncode != 0:
+            print(f"FFmpeg mux error: {result.stderr[:500]}", flush=True)
+            return False
+        return True
+    except Exception as e:
+        print(f"FFmpeg mux exception: {e}", flush=True)
+        return False
+
+@app.post("/dubbing/start")
+async def dubbing_start(file: UploadFile = File(...), target_lang: str = "eng_Latn"):
+    job_id = str(uuid.uuid4())[:8]
+    start_time = time.time()
+
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in [".mp4", ".webm", ".mov", ".mkv", ".avi"]:
+        raise HTTPException(status_code=400, detail=f"Unsupported video format: {ext}")
+
+    video_path = f"data/videos/{job_id}{ext}"
+    with open(video_path, "wb") as buf:
+        shutil.copyfileobj(file.file, buf)
+
+    size_mb = os.path.getsize(video_path) / (1024 * 1024)
+    print(f"🎬 Job {job_id}: {file.filename} ({size_mb:.1f} MB)", flush=True)
+
+    audio_path = f"data/audio/{job_id}_extracted.wav"
+    print(f"   [{job_id}] Extracting audio...", flush=True)
+    if not run_ffmpeg_extract_audio(video_path, audio_path):
+        raise HTTPException(status_code=500, detail="Failed to extract audio")
+
+    print(f"   [{job_id}] Transcribing...", flush=True)
+    try:
+        load_whisper()
+        result = whisper_model.transcribe(audio_path, fp16=False, language=None, task="transcribe")
+        source_text = result.get("text", "").strip()
+        detected_lang = result.get("language", "en")
+        print(f"   [{job_id}] Detected: {detected_lang} — '{source_text[:100]}'", flush=True)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)[:200]}")
+
+    if not source_text:
+        raise HTTPException(status_code=400, detail="No speech detected in video")
+
+    source_nllb = WHISPER_TO_NLLB.get(detected_lang, "eng_Latn")
+    if source_nllb == target_lang:
+        translated_text = source_text
+        print(f"   [{job_id}] Same language — skipping translation", flush=True)
+    else:
+        print(f"   [{job_id}] Translating {source_nllb} → {target_lang}...", flush=True)
+        try:
+            load_models()
+            translation_tokenizer.src_lang = source_nllb
+            encoded = translation_tokenizer(source_text, return_tensors="pt")
+            tokens = translation_model.generate(**encoded,
+                forced_bos_token_id=translation_tokenizer.convert_tokens_to_ids(target_lang),
+                max_length=1024)
+            translated_text = translation_tokenizer.batch_decode(tokens, skip_special_tokens=True)[0]
+            print(f"   [{job_id}] Translated: '{translated_text[:100]}'", flush=True)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Translation failed: {str(e)[:200]}")
+
+    dubbed_audio = f"data/audio/{job_id}_dubbed.mp3"
+    print(f"   [{job_id}] Generating dubbed speech...", flush=True)
+    try:
+        voice = get_voice(target_lang)
+        communicate = edge_tts.Communicate(translated_text, voice)
+        await communicate.save(dubbed_audio)
+        print(f"   [{job_id}] Dubbed audio saved", flush=True)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"TTS failed: {str(e)[:200]}")
+
+    output_video = f"data/dubbed/{job_id}_dubbed.mp4"
+    print(f"   [{job_id}] Muxing...", flush=True)
+    if not run_ffmpeg_mux(video_path, dubbed_audio, output_video):
+        raise HTTPException(status_code=500, detail="Failed to mux dubbed audio")
+
+    latency = round(time.time() - start_time, 2)
+    print(f"✅ Job {job_id} complete in {latency}s", flush=True)
+
+    return {
+        "job_id": job_id,
+        "source_lang": source_nllb,
+        "target_lang": target_lang,
+        "source_text": source_text,
+        "translated_text": translated_text,
+        "output_url": f"/data/dubbed/{job_id}_dubbed.mp4",
+        "original_url": f"/data/videos/{job_id}{ext}",
+        "latency_seconds": latency,
+        "message": f"Dubbed video ready ({latency}s)"
+    }
+
+@app.post("/telephony/call")
+async def telephony_call(payload: dict):
+    raise HTTPException(status_code=501, detail="Telephony not configured")
+
+@app.post("/telephony/hangup")
+async def telephony_hangup():
+    raise HTTPException(status_code=501, detail="Telephony not configured")
+
+@app.post("/live/room")
+async def live_room(payload: dict):
+    raise HTTPException(status_code=501, detail="Live translation requires OpenAI Realtime API")
 
 # ===== REQUEST MODELS =====
 
@@ -366,6 +452,15 @@ class AdminLoginRequest(BaseModel):
 async def root():
     return {"Hello": "LingoLink AI Backend is running"}
 
+@app.get("/health")
+async def health():
+    return {
+        "status": "healthy",
+        "models_loaded": _models_loaded,
+        "whisper": whisper_model is not None,
+        "nllb": translation_model is not None,
+    }
+
 @app.post("/auth/signup/")
 async def signup(request: SignupRequest, db: Session = Depends(get_db)):
     if not request.name.strip() or not request.email.strip() or not request.password:
@@ -377,7 +472,7 @@ async def signup(request: SignupRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Email already registered")
     user = User(name=request.name.strip(), email=email_lower, password=hash_password(request.password))
     db.add(user); db.commit(); db.refresh(user)
-    return {"success": True, "user": {"id": user.id, "name": user.name, "email": user.email}, "message": "Account created successfully"}
+    return {"success": True, "user": {"id": user.id, "name": user.name, "email": user.email}, "message": "Account created"}
 
 @app.post("/auth/login/")
 async def login(request: LoginRequest, db: Session = Depends(get_db)):
@@ -393,8 +488,7 @@ async def update_profile(request: UpdateProfileRequest, db: Session = Depends(ge
     user = db.query(User).filter(User.email == request.email.lower().strip()).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    if request.new_name:
-        user.name = request.new_name.strip()
+    if request.new_name: user.name = request.new_name.strip()
     if request.new_email and request.new_email.lower().strip() != user.email:
         if db.query(User).filter(User.email == request.new_email.lower().strip()).first():
             raise HTTPException(status_code=400, detail="Email already in use")
@@ -416,12 +510,10 @@ async def admin_login(request: AdminLoginRequest):
 async def admin_stats(admin: bool = Depends(verify_admin), db: Session = Depends(get_db)):
     total_translations = db.query(TranslationRecord).count()
     total_users = db.query(User).count()
-    lang_pairs = db.query(
-        TranslationRecord.source_lang, TranslationRecord.target_lang,
-        func.count(TranslationRecord.id).label('count')
-    ).group_by(TranslationRecord.source_lang, TranslationRecord.target_lang).order_by(
-        func.count(TranslationRecord.id).desc()
-    ).limit(10).all()
+    lang_pairs = db.query(TranslationRecord.source_lang, TranslationRecord.target_lang,
+        func.count(TranslationRecord.id).label('count')).group_by(
+        TranslationRecord.source_lang, TranslationRecord.target_lang).order_by(
+        func.count(TranslationRecord.id).desc()).limit(10).all()
     last_24h = db.query(TranslationRecord).filter(TranslationRecord.created_at >= datetime.utcnow() - timedelta(hours=24)).count()
     last_7d = db.query(TranslationRecord).filter(TranslationRecord.created_at >= datetime.utcnow() - timedelta(days=7)).count()
     daily_counts = []
@@ -430,11 +522,9 @@ async def admin_stats(admin: bool = Depends(verify_admin), db: Session = Depends
         de = ds + timedelta(days=1)
         c = db.query(TranslationRecord).filter(TranslationRecord.created_at >= ds, TranslationRecord.created_at < de).count()
         daily_counts.append({"date": ds.strftime("%Y-%m-%d"), "count": c})
-    return {
-        "total_translations": total_translations, "total_users": total_users,
+    return {"total_translations": total_translations, "total_users": total_users,
         "last_24h": last_24h, "last_7d": last_7d, "daily_counts": daily_counts,
-        "top_language_pairs": [{"source": p[0], "target": p[1], "count": p[2]} for p in lang_pairs]
-    }
+        "top_language_pairs": [{"source": p[0], "target": p[1], "count": p[2]} for p in lang_pairs]}
 
 @app.get("/admin/users/")
 async def admin_users(admin: bool = Depends(verify_admin), db: Session = Depends(get_db)):
@@ -478,7 +568,7 @@ async def translate_text(request: TranslationRequest, db: Session = Depends(get_
         await communicate.save(f"data/audio/{tts_filename}")
         tts_url = f"/data/audio/{tts_filename}"
     except Exception as e:
-        print(f"TTS error: {e}")
+        print(f"TTS error: {e}", flush=True)
     rec = TranslationRecord(source_lang=request.source_lang, target_lang=request.target_lang, source_text=request.text, translated_text=translated)
     db.add(rec); db.commit(); db.refresh(rec)
     return {"id": rec.id, "source_text": request.text, "translated_text": translated,
@@ -506,7 +596,7 @@ async def translate_audio(file: UploadFile = File(...), source_lang: str = "eng_
         await communicate.save(f"data/audio/{tts_filename}")
         tts_url = f"/data/audio/{tts_filename}"
     except Exception as e:
-        print(f"TTS error: {e}")
+        print(f"TTS error: {e}", flush=True)
     rec = TranslationRecord(source_lang=source_lang, target_lang=target_lang, source_text=src_text, translated_text=translated)
     db.add(rec); db.commit(); db.refresh(rec)
     return {"id": rec.id, "source_text": src_text, "translated_text": translated,
@@ -527,41 +617,3 @@ async def delete_history(record_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Record not found")
     db.delete(r); db.commit()
     return {"message": "Record deleted"}
-# ===== SKELETON ENDPOINTS (return 501 until configured) =====
-
-@app.post("/telephony/call")
-async def telephony_call(payload: dict):
-    raise HTTPException(
-        status_code=501,
-        detail=(
-            "Telephony not configured. Sign up for Twilio or LiveKit, "
-            "then implement the /telephony/call handler. "
-            "See agent-console/app/telephony/page.tsx for setup instructions."
-        )
-    )
-
-@app.post("/telephony/hangup")
-async def telephony_hangup():
-    raise HTTPException(status_code=501, detail="Telephony not configured")
-
-@app.post("/live/room")
-async def live_room(payload: dict):
-    raise HTTPException(
-        status_code=501,
-        detail=(
-            "Live translation requires OpenAI Realtime API or a WebRTC bridge. "
-            "Set OPENAI_API_KEY in your environment and implement this handler. "
-            "See agent-console/app/live-demo/page.tsx for details."
-        )
-    )
-
-@app.post("/dubbing/start")
-async def dubbing_start(file: UploadFile = File(...), target_lang: str = "eng_Latn"):
-    raise HTTPException(
-        status_code=501,
-        detail=(
-            "Dubbing pipeline not implemented. This is the EASIEST to build with "
-            "your existing Whisper + NLLB + edge-tts stack. Say 'build dubbing' "
-            "to get the real implementation."
-        )
-    )

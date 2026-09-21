@@ -9,6 +9,7 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    mem_limit: 256m
 
   backend:
     build: ./backend
@@ -16,10 +17,18 @@ services:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql://lingo:lingopass@postgres:5432/lingolink_db
+      OMP_NUM_THREADS: "2"
+      MKL_NUM_THREADS: "2"
+      TOKENIZERS_PARALLELISM: "false"
+      OPENBLAS_NUM_THREADS: "2"
     depends_on:
       - postgres
     volumes:
       - ./data:/app/data
+      - ./backend/app:/app/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    mem_limit: 5g
+    shm_size: 512m
 
 volumes:
   pgdata:
