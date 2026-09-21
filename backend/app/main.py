@@ -527,3 +527,41 @@ async def delete_history(record_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Record not found")
     db.delete(r); db.commit()
     return {"message": "Record deleted"}
+# ===== SKELETON ENDPOINTS (return 501 until configured) =====
+
+@app.post("/telephony/call")
+async def telephony_call(payload: dict):
+    raise HTTPException(
+        status_code=501,
+        detail=(
+            "Telephony not configured. Sign up for Twilio or LiveKit, "
+            "then implement the /telephony/call handler. "
+            "See agent-console/app/telephony/page.tsx for setup instructions."
+        )
+    )
+
+@app.post("/telephony/hangup")
+async def telephony_hangup():
+    raise HTTPException(status_code=501, detail="Telephony not configured")
+
+@app.post("/live/room")
+async def live_room(payload: dict):
+    raise HTTPException(
+        status_code=501,
+        detail=(
+            "Live translation requires OpenAI Realtime API or a WebRTC bridge. "
+            "Set OPENAI_API_KEY in your environment and implement this handler. "
+            "See agent-console/app/live-demo/page.tsx for details."
+        )
+    )
+
+@app.post("/dubbing/start")
+async def dubbing_start(file: UploadFile = File(...), target_lang: str = "eng_Latn"):
+    raise HTTPException(
+        status_code=501,
+        detail=(
+            "Dubbing pipeline not implemented. This is the EASIEST to build with "
+            "your existing Whisper + NLLB + edge-tts stack. Say 'build dubbing' "
+            "to get the real implementation."
+        )
+    )
