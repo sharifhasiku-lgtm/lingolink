@@ -31,3 +31,10 @@ node_modules/
 # Tunnel logs and temp files
 *_tunnel.log
 current_urls.txt
+
+data/videos/*
+!data/videos/.gitkeep
+data/dubbed/*
+!data/dubbed/.gitkeep
+data/audio/*
+!data/audio/.gitkeep
