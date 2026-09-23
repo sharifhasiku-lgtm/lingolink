@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      width: 280px;
+      padding: 16px;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #1a1a2e;
+      color: #e8e8f0;
+    }
+    h1 {
+      font-size: 16px;
+      margin: 0 0 12px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    label {
+      display: block;
+      font-size: 12px;
+      margin-bottom: 4px;
+      color: #a0a0b0;
+    }
+    select {
+      width: 100%;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #3a3a4e;
+      background: #2a2a3e;
+      color: #e8e8f0;
+      font-size: 13px;
+      margin-bottom: 12px;
+      box-sizing: border-box;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 8px;
+    }
+    #startBtn {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+    }
+    #startBtn:disabled {
+      background: #444;
+      cursor: not-allowed;
+    }
+    #stopBtn {
+      background: #ff4444;
+      color: white;
+      display: none;
+    }
+    #status {
+      font-size: 12px;
+      color: #a0a0b0;
+      margin-top: 8px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>🌐 LingoLink Subtitles</h1>
+
+  <label>Translate to</label>
+  <select id="targetLang">
+    <option value="eng_Latn">English</option>
+    <option value="swh_Latn">Swahili</option>
+    <option value="fra_Latn">French</option>
+    <option value="spa_Latn">Spanish</option>
+    <option value="deu_Latn">German</option>
+    <option value="arb_Arab">Arabic</option>
+    <option value="zho_Hans">Chinese</option>
+    <option value="hin_Deva">Hindi</option>
+  </select>
+
+  <button id="startBtn">▶ Start Captions</button>
+  <button id="stopBtn">⏹ Stop Captions</button>
+
+  <div id="status">Ready</div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
+
