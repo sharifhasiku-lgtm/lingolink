@@ -21,14 +21,19 @@ services:
       MKL_NUM_THREADS: "2"
       TOKENIZERS_PARALLELISM: "false"
       OPENBLAS_NUM_THREADS: "2"
+      HF_HOME: "/hf_cache"
+      TRANSFORMERS_CACHE: "/hf_cache"
+      XDG_CACHE_HOME: "/hf_cache"
+      JWT_SECRET: "lingolink-prod-secret-CHANGE-ME-2026"
     depends_on:
       - postgres
     volumes:
       - ./data:/app/data
       - ./backend/app:/app/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+      - ./hf_cache:/hf_cache
     mem_limit: 5g
     shm_size: 512m
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 volumes:
   pgdata:

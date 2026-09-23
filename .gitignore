@@ -38,3 +38,5 @@ data/dubbed/*
 !data/dubbed/.gitkeep
 data/audio/*
 !data/audio/.gitkeep
+
+hf_cache/

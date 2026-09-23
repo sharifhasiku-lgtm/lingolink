@@ -4,6 +4,8 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+from pydantic import BaseModel
+from typing import Optional
 import torch
 import shutil
 import time
@@ -18,12 +20,15 @@ import threading
 import wave
 import numpy as np
 from datetime import datetime, timedelta
-from pydantic import BaseModel
-from typing import Optional
 
-from app.models import get_db, User, TranslationRecord, engine, Base
+from app.models import get_db, User, TranslationRecord, RefreshToken, engine, Base
+from app.auth import (
+    hash_password, verify_password,
+    create_access_token, create_refresh_token,
+    verify_refresh_token, revoke_refresh_token, revoke_all_user_tokens,
+    get_current_user, require_admin,
+)
 
-# ===== MEMORY OPTIMIZATION FOR 8GB PCs =====
 os.environ["OMP_NUM_THREADS"] = "2"
 os.environ["MKL_NUM_THREADS"] = "2"
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -58,7 +63,6 @@ whisper_model = None
 _models_loaded = False
 
 def load_models():
-    """Load NLLB-200 (smallest translation model)."""
     global translation_tokenizer, translation_model
     if translation_model is None:
         print("Loading NLLB-200 distilled 600M...", flush=True)
@@ -67,7 +71,6 @@ def load_models():
         print("✅ NLLB-200 loaded!", flush=True)
 
 def load_whisper():
-    """Load Whisper 'base' — half the size of 'small', fits in 8GB PCs."""
     global whisper_model
     if whisper_model is None:
         print("Loading Whisper 'base' (140MB)...", flush=True)
@@ -75,8 +78,8 @@ def load_whisper():
         whisper_model = whisper.load_model("base")
         print("✅ Whisper 'base' loaded!", flush=True)
 
-# ===== PRELOAD MODELS ON STARTUP =====
 def _preload_models():
+    global _models_loaded
     try:
         print("🚀 Preloading NLLB-200...", flush=True)
         load_models()
@@ -87,7 +90,6 @@ def _preload_models():
         load_whisper()
     except Exception as e:
         print(f"❌ Whisper preload error: {e}", flush=True)
-    global _models_loaded
     _models_loaded = True
     print("✅ All models preloaded. Backend ready.", flush=True)
 
@@ -125,9 +127,6 @@ VOICE_MAP = {
 
 def get_voice(lang_code):
     return VOICE_MAP.get(lang_code, "en-US-AriaNeural")
-
-def hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode()).hexdigest()
 
 def verify_admin(authorization: Optional[str] = Header(None)):
     if not authorization or not authorization.startswith("Basic "):
@@ -363,7 +362,6 @@ async def dubbing_start(file: UploadFile = File(...), target_lang: str = "eng_La
     source_nllb = WHISPER_TO_NLLB.get(detected_lang, "eng_Latn")
     if source_nllb == target_lang:
         translated_text = source_text
-        print(f"   [{job_id}] Same language — skipping translation", flush=True)
     else:
         print(f"   [{job_id}] Translating {source_nllb} → {target_lang}...", flush=True)
         try:
@@ -374,7 +372,6 @@ async def dubbing_start(file: UploadFile = File(...), target_lang: str = "eng_La
                 forced_bos_token_id=translation_tokenizer.convert_tokens_to_ids(target_lang),
                 max_length=1024)
             translated_text = translation_tokenizer.batch_decode(tokens, skip_special_tokens=True)[0]
-            print(f"   [{job_id}] Translated: '{translated_text[:100]}'", flush=True)
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Translation failed: {str(e)[:200]}")
 
@@ -384,7 +381,6 @@ async def dubbing_start(file: UploadFile = File(...), target_lang: str = "eng_La
         voice = get_voice(target_lang)
         communicate = edge_tts.Communicate(translated_text, voice)
         await communicate.save(dubbed_audio)
-        print(f"   [{job_id}] Dubbed audio saved", flush=True)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"TTS failed: {str(e)[:200]}")
 
@@ -408,18 +404,6 @@ async def dubbing_start(file: UploadFile = File(...), target_lang: str = "eng_La
         "message": f"Dubbed video ready ({latency}s)"
     }
 
-@app.post("/telephony/call")
-async def telephony_call(payload: dict):
-    raise HTTPException(status_code=501, detail="Telephony not configured")
-
-@app.post("/telephony/hangup")
-async def telephony_hangup():
-    raise HTTPException(status_code=501, detail="Telephony not configured")
-
-@app.post("/live/room")
-async def live_room(payload: dict):
-    raise HTTPException(status_code=501, detail="Live translation requires OpenAI Realtime API")
-
 # ===== REQUEST MODELS =====
 
 class SignupRequest(BaseModel):
@@ -431,8 +415,13 @@ class LoginRequest(BaseModel):
     email: str
     password: str
 
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+class LogoutRequest(BaseModel):
+    refresh_token: str
+
 class UpdateProfileRequest(BaseModel):
-    email: str
     new_name: Optional[str] = None
     new_email: Optional[str] = None
     new_password: Optional[str] = None
@@ -461,44 +450,137 @@ async def health():
         "nllb": translation_model is not None,
     }
 
+# ===== AUTH (JWT) =====
+
 @app.post("/auth/signup/")
 async def signup(request: SignupRequest, db: Session = Depends(get_db)):
     if not request.name.strip() or not request.email.strip() or not request.password:
         raise HTTPException(status_code=400, detail="All fields are required")
     if len(request.password) < 6:
         raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    
     email_lower = request.email.lower().strip()
     if db.query(User).filter(User.email == email_lower).first():
         raise HTTPException(status_code=400, detail="Email already registered")
-    user = User(name=request.name.strip(), email=email_lower, password=hash_password(request.password))
-    db.add(user); db.commit(); db.refresh(user)
-    return {"success": True, "user": {"id": user.id, "name": user.name, "email": user.email}, "message": "Account created"}
+    
+    user = User(
+        name=request.name.strip(),
+        email=email_lower,
+        password=hash_password(request.password),
+        role="user",
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    
+    access_token = create_access_token(user.id, user.email, user.role)
+    refresh_token = create_refresh_token(user.id, db)
+    
+    return {
+        "success": True,
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "expires_in": 30 * 60,
+        "user": {"id": user.id, "name": user.name, "email": user.email, "role": user.role},
+        "message": "Account created successfully"
+    }
 
 @app.post("/auth/login/")
 async def login(request: LoginRequest, db: Session = Depends(get_db)):
     if not request.email.strip() or not request.password:
         raise HTTPException(status_code=400, detail="Email and password required")
+    
     user = db.query(User).filter(User.email == request.email.lower().strip()).first()
-    if not user or user.password != hash_password(request.password):
+    if not user or not verify_password(request.password, user.password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
-    return {"success": True, "user": {"id": user.id, "name": user.name, "email": user.email}, "message": "Login successful"}
+    
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Account disabled")
+    
+    access_token = create_access_token(user.id, user.email, user.role)
+    refresh_token = create_refresh_token(user.id, db)
+    
+    return {
+        "success": True,
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "expires_in": 30 * 60,
+        "user": {"id": user.id, "name": user.name, "email": user.email, "role": user.role},
+        "message": "Login successful"
+    }
+
+@app.post("/auth/refresh/")
+async def refresh(request: RefreshRequest, db: Session = Depends(get_db)):
+    rt = verify_refresh_token(request.refresh_token, db)
+    if not rt:
+        raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
+    
+    user = db.query(User).filter(User.id == rt.user_id).first()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="User not found or inactive")
+    
+    # Rotate: revoke old, issue new
+    rt.revoked = True
+    db.commit()
+    
+    new_access = create_access_token(user.id, user.email, user.role)
+    new_refresh = create_refresh_token(user.id, db)
+    
+    return {
+        "success": True,
+        "access_token": new_access,
+        "refresh_token": new_refresh,
+        "token_type": "bearer",
+        "expires_in": 30 * 60,
+    }
+
+@app.post("/auth/logout/")
+async def logout(request: LogoutRequest, db: Session = Depends(get_db)):
+    revoke_refresh_token(request.refresh_token, db)
+    return {"success": True, "message": "Logged out"}
+
+@app.get("/auth/me/")
+async def me(current_user: User = Depends(get_current_user)):
+    return {
+        "id": current_user.id,
+        "name": current_user.name,
+        "email": current_user.email,
+        "role": current_user.role,
+    }
 
 @app.post("/auth/update/")
-async def update_profile(request: UpdateProfileRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == request.email.lower().strip()).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    if request.new_name: user.name = request.new_name.strip()
-    if request.new_email and request.new_email.lower().strip() != user.email:
-        if db.query(User).filter(User.email == request.new_email.lower().strip()).first():
+async def update_profile(
+    request: UpdateProfileRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if request.new_name:
+        current_user.name = request.new_name.strip()
+    
+    if request.new_email and request.new_email.lower().strip() != current_user.email:
+        existing = db.query(User).filter(User.email == request.new_email.lower().strip()).first()
+        if existing:
             raise HTTPException(status_code=400, detail="Email already in use")
-        user.email = request.new_email.lower().strip()
+        current_user.email = request.new_email.lower().strip()
+    
     if request.new_password:
         if len(request.new_password) < 6:
             raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
-        user.password = hash_password(request.new_password)
-    db.commit(); db.refresh(user)
-    return {"success": True, "user": {"id": user.id, "name": user.name, "email": user.email}, "message": "Profile updated"}
+        current_user.password = hash_password(request.new_password)
+        # Revoke all refresh tokens on password change (security)
+        revoke_all_user_tokens(current_user.id, db)
+    
+    db.commit()
+    db.refresh(current_user)
+    return {
+        "success": True,
+        "user": {"id": current_user.id, "name": current_user.name, "email": current_user.email, "role": current_user.role},
+        "message": "Profile updated. Please log in again if you changed your password."
+    }
+
+# ===== ADMIN (Basic auth, unchanged) =====
 
 @app.post("/admin/login/")
 async def admin_login(request: AdminLoginRequest):
@@ -529,7 +611,7 @@ async def admin_stats(admin: bool = Depends(verify_admin), db: Session = Depends
 @app.get("/admin/users/")
 async def admin_users(admin: bool = Depends(verify_admin), db: Session = Depends(get_db)):
     users = db.query(User).order_by(User.created_at.desc()).all()
-    return {"total": len(users), "users": [{"id": u.id, "name": u.name, "email": u.email, "created_at": u.created_at.isoformat() if u.created_at else None} for u in users]}
+    return {"total": len(users), "users": [{"id": u.id, "name": u.name, "email": u.email, "role": u.role, "created_at": u.created_at.isoformat() if u.created_at else None} for u in users]}
 
 @app.get("/admin/translations/")
 async def admin_translations(admin: bool = Depends(verify_admin), db: Session = Depends(get_db), limit: int = 50, offset: int = 0):
@@ -551,6 +633,8 @@ async def admin_delete_translation(record_id: int, admin: bool = Depends(verify_
 async def admin_clear_translations(admin: bool = Depends(verify_admin), db: Session = Depends(get_db)):
     c = db.query(TranslationRecord).delete(); db.commit()
     return {"message": f"Deleted {c} records"}
+
+# ===== TRANSLATION (public, no auth) =====
 
 @app.post("/translate_text/")
 async def translate_text(request: TranslationRequest, db: Session = Depends(get_db)):
