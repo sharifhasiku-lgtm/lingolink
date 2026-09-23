@@ -1,4 +1,7 @@
-﻿from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, ForeignKey, Boolean
+﻿from sqlalchemy import (
+    create_engine, Column, Integer, String, DateTime, Text,
+    ForeignKey, Boolean, Table
+)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
@@ -10,16 +13,23 @@ engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+role_permissions = Table(
+    "role_permissions",
+    Base.metadata,
+    Column("role_id", Integer, ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True),
+    Column("permission_id", Integer, ForeignKey("permissions.id", ondelete="CASCADE"), primary_key=True),
+)
+
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
-    password = Column(String, nullable=False)  # bcrypt hash
-    role = Column(String, default="user")  # "user" or "admin"
+    password = Column(String, nullable=False)
+    role = Column(String, default="user")
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    
+
     refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
 
 class RefreshToken(Base):
@@ -30,8 +40,25 @@ class RefreshToken(Base):
     expires_at = Column(DateTime, nullable=False)
     revoked = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
-    
+
     user = relationship("User", back_populates="refresh_tokens")
+
+class Role(Base):
+    __tablename__ = "roles"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True, nullable=False)
+    description = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    permissions = relationship("Permission", secondary=role_permissions, back_populates="roles")
+
+class Permission(Base):
+    __tablename__ = "permissions"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True, nullable=False)
+    description = Column(String, nullable=True)
+
+    roles = relationship("Role", secondary=role_permissions, back_populates="permissions")
 
 class AudioRecord(Base):
     __tablename__ = "audio_records"
