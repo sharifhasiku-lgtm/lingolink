@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Zendesk Simulator — LingoLink</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f0f1e;
+      color: #e8e8f0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Zendesk-style top bar */
+    .zd-top {
+      height: 50px;
+      background: #03363d;
+      color: white;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 20px;
+      border-bottom: 1px solid #022a30;
+      flex-shrink: 0;
+    }
+    .zd-top .brand {
+      font-weight: 700;
+      font-size: 16px;
+      color: #78a300;
+    }
+    .zd-top .tab {
+      padding: 8px 16px;
+      font-size: 13px;
+      color: rgba(255,255,255,0.7);
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .zd-top .tab.active {
+      background: rgba(255,255,255,0.1);
+      color: white;
+    }
+    .zd-top .apps-btn {
+      margin-left: auto;
+      padding: 6px 14px;
+      background: rgba(255,255,255,0.15);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    /* Main layout */
+    .zd-main {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* Ticket pane (fake) */
+    .ticket-pane {
+      flex: 1;
+      padding: 30px;
+      overflow-y: auto;
+      background: #1a1a2e;
+    }
+    .ticket-pane h2 {
+      font-size: 22px;
+      margin-bottom: 8px;
+      color: #fff;
+    }
+    .ticket-pane .meta {
+      color: #808090;
+      font-size: 13px;
+      margin-bottom: 30px;
+    }
+    .ticket-pane .message {
+      background: #2a2a3e;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 12px;
+      border-left: 3px solid #667eea;
+    }
+    .ticket-pane .message .from {
+      color: #667eea;
+      font-weight: 600;
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+    .ticket-pane .message .body {
+      font-size: 14px;
+      color: #ccc;
+      line-height: 1.6;
+    }
+
+    /* Right sidebar (where Zendesk apps live) */
+    .sidebar {
+      width: 420px;
+      background: #0f0f1e;
+      border-left: 1px solid #2a2a3e;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+    .sidebar-header {
+      padding: 12px 16px;
+      background: #1a1a2e;
+      border-bottom: 1px solid #2a2a3e;
+      font-size: 13px;
+      color: #808090;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .sidebar-header .title {
+      color: #e8e8f0;
+      font-weight: 600;
+    }
+    .sidebar-header .close {
+      background: none;
+      border: none;
+      color: #808090;
+      cursor: pointer;
+      font-size: 16px;
+      padding: 4px 8px;
+    }
+    .sidebar iframe {
+      flex: 1;
+      width: 100%;
+      border: none;
+    }
+
+    /* Hidden state */
+    .sidebar.hidden {
+      display: none;
+    }
+
+    /* Info bar at the bottom */
+    .info {
+      height: 32px;
+      background: #1a1a2e;
+      border-top: 1px solid #2a2a3e;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      font-size: 11px;
+      color: #808090;
+      gap: 12px;
+    }
+    .info .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #4CAF50;
+    }
+  </style>
+</head>
+<body>
+  <!-- Zendesk-style top bar -->
+  <div class="zd-top">
+    <div class="brand">Zendesk Support</div>
+    <div class="tab active">Ticket #12345</div>
+    <div class="tab">Views</div>
+    <div class="tab">Customers</div>
+    <button class="apps-btn" onclick="toggleSidebar()">⚡ Apps</button>
+  </div>
+
+  <!-- Main area -->
+  <div class="zd-main">
+    <!-- Ticket pane (fake) -->
+    <div class="ticket-pane">
+      <h2>Customer needs translation help</h2>
+      <div class="meta">Ticket #12345 · Opened 5 minutes ago · Priority: Normal</div>
+
+      <div class="message">
+        <div class="from">Maria Garcia · maria@example.com</div>
+        <div class="body">
+          Hola, tengo un problema con mi pedido. Necesito ayuda urgente para traducir mi conversación con el equipo de ventas. ¿Pueden ayudarme?
+        </div>
+      </div>
+
+      <div class="message">
+        <div class="from">Agent (You)</div>
+        <div class="body">
+          Hi Maria, I'll help you with that. Please wait a moment while I set up the translation tool.
+        </div>
+      </div>
+
+      <p style="color: #808090; font-size: 13px; margin-top: 30px; text-align: center;">
+        ← The LingoLink app will appear in the right sidebar →
+      </p>
+    </div>
+
+    <!-- Sidebar (where the Zendesk app loads) -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <span class="title">Apps</span>
+        <button class="close" onclick="toggleSidebar()">×</button>
+      </div>
+      <iframe
+        id="appFrame"
+        src="assets/iframe.html"
+        allow="microphone; autoplay"
+      ></iframe>
+    </div>
+  </div>
+
+  <!-- Info bar -->
+  <div class="info">
+    <span class="dot"></span>
+    <span>Simulator running — this is a mock of Zendesk's ticket view</span>
+    <span style="margin-left: auto;">Load LingoLink from <code>assets/iframe.html</code></span>
+  </div>
+
+  <!-- Mock ZAF SDK so the app works without Zendesk -->
+  <script>
+    // This runs in the PARENT frame. The iframe loads zaf_sdk.min.js from CDN.
+    // We override ZAFClient in the iframe to return mock data.
+
+    const appFrame = document.getElementById('appFrame');
+
+    // When iframe loads, inject a mock ZAFClient
+    appFrame.addEventListener('load', () => {
+      try {
+        const frameWindow = appFrame.contentWindow;
+        // Inject mock ZAFClient BEFORE the SDK runs its actual init
+        frameWindow.ZAFClient = {
+          init: () => ({
+            invoke: (name, ...args) => {
+              console.log('[Mock ZAF]', name, args);
+              if (name === 'resize') {
+                // no-op
+              }
+            },
+            get: (keys) => Promise.resolve({
+              'ticket.id': 12345,
+              'ticket.subject': 'Customer needs translation help',
+              'ticket.requester.name': 'Maria Garcia',
+              'ticket.requester.email': 'maria@example.com'
+            }),
+            on: () => {},
+            set: () => Promise.resolve(),
+          })
+        };
+      } catch (e) {
+        console.log('ZAF mock injection failed (CORS):', e);
+      }
+    });
+
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('hidden');
+    }
+  </script>
+</body>
+</html>

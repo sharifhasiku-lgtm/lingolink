@@ -1,0 +1,20 @@
+{
+  "name": "LingoLink Live Translation",
+  "author": {
+    "name": "LingoLink AI",
+    "email": "support@lingolink.ai",
+    "url": "https://lingolink.ai"
+  },
+  "defaultLocale": "en",
+  "private": true,
+  "version": "1.0.0",
+  "frameworkVersion": "2.0",
+  "location": {
+    "support": {
+      "ticket_sidebar": {
+        "url": "assets/iframe.html",
+        "flexible": true
+      }
+    }
+  }
+}
