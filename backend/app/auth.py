@@ -9,8 +9,12 @@ from app.models import get_db, User, RefreshToken
 import os
 import secrets
 
-# ===== CONFIG =====
-SECRET_KEY = os.getenv("JWT_SECRET", "lingolink-dev-secret-CHANGE-IN-PRODUCTION-2026")
+SECRET_KEY = os.getenv("JWT_SECRET")
+if not SECRET_KEY:
+    raise RuntimeError(
+        "JWT_SECRET environment variable is not set. Add it to .env"
+    )
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7
@@ -18,7 +22,6 @@ REFRESH_TOKEN_EXPIRE_DAYS = 7
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer(auto_error=False)
 
-# ===== PASSWORD =====
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
@@ -28,7 +31,6 @@ def verify_password(plain: str, hashed: str) -> bool:
     except Exception:
         return False
 
-# ===== ACCESS TOKEN =====
 def create_access_token(user_id: int, email: str, role: str) -> str:
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     payload = {
@@ -41,7 +43,6 @@ def create_access_token(user_id: int, email: str, role: str) -> str:
     }
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
-# ===== REFRESH TOKEN =====
 def create_refresh_token(user_id: int, db: Session) -> str:
     token = secrets.token_urlsafe(64)
     expires = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
@@ -75,7 +76,6 @@ def revoke_all_user_tokens(user_id: int, db: Session):
     ).update({"revoked": True})
     db.commit()
 
-# ===== CURRENT USER DEPENDENCY =====
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)
@@ -98,7 +98,7 @@ def get_current_user(
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
@@ -106,7 +106,6 @@ def get_current_user(
         raise HTTPException(status_code=403, detail="Account disabled")
     return user
 
-# ===== ROLE-BASED ACCESS =====
 def require_admin(current_user: User = Depends(get_current_user)) -> User:
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")

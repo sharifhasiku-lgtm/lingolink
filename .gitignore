@@ -40,3 +40,5 @@ data/audio/*
 !data/audio/.gitkeep
 
 hf_cache/
+
+.env
