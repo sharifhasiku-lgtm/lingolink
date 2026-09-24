@@ -42,3 +42,6 @@ data/audio/*
 hf_cache/
 
 .env
+
+PROGRESS.md
+.vercel
