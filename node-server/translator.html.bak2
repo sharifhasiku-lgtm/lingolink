@@ -309,8 +309,12 @@
         </div>
         <div class="tab-content" id="recordTab">
             <div class="language-selector">
-                <div class="language-group" style="flex:1;">
-                    <label>Translate to</label>
+                <div class="language-group">
+                    <label>From</label>
+                    <select id="sourceLangRecord"></select>
+                </div>
+                <div class="language-group">
+                    <label>To</label>
                     <select id="targetLangRecord"></select>
                 </div>
             </div>
@@ -345,8 +349,12 @@
         </div>
         <div class="tab-content" id="uploadTab">
             <div class="language-selector">
-                <div class="language-group" style="flex:1;">
-                    <label>Translate to</label>
+                <div class="language-group">
+                    <label>From</label>
+                    <select id="sourceLangUpload"></select>
+                </div>
+                <div class="language-group">
+                    <label>To</label>
                     <select id="targetLangUpload"></select>
                 </div>
             </div>
@@ -694,12 +702,12 @@
             } else if (context === 'record') {
                 sourceText = document.getElementById('recordSourceText').textContent;
                 translatedText = document.getElementById('recordTranslatedText').textContent;
-                sourceLang = 'eng_Latn';
+                sourceLang = document.getElementById('sourceLangRecord').value;
                 targetLang = document.getElementById('targetLangRecord').value;
             } else if (context === 'upload') {
                 sourceText = document.getElementById('uploadSourceText').textContent;
                 translatedText = document.getElementById('uploadTranslatedText').textContent;
-                sourceLang = 'eng_Latn';
+                sourceLang = document.getElementById('sourceLangUpload').value;
                 targetLang = document.getElementById('targetLangUpload').value;
             }
             if (!sourceText || !translatedText || translatedText === 'N/A') { alert('Nothing to favorite'); return; }
@@ -813,8 +821,6 @@
                 successDiv.textContent = '✅ Account created! Logging in...';
                 successDiv.classList.add('show');
                 currentUser = data.user;
-                if (data.access_token) localStorage.setItem('lingolink_token', data.access_token);
-                if (data.refresh_token) localStorage.setItem('lingolink_refresh', data.refresh_token);
                 localStorage.setItem('lingolink_current_user', JSON.stringify(data.user));
                 setTimeout(() => showMainApp(data.user), 800);
             } catch (error) {
@@ -839,8 +845,6 @@
                 const data = await response.json();
                 if (!response.ok) throw new Error(data.detail || 'Login failed');
                 currentUser = data.user;
-                if (data.access_token) localStorage.setItem('lingolink_token', data.access_token);
-                if (data.refresh_token) localStorage.setItem('lingolink_refresh', data.refresh_token);
                 localStorage.setItem('lingolink_current_user', JSON.stringify(data.user));
                 showMainApp(data.user);
             } catch (error) {
@@ -851,7 +855,7 @@
         
         function logout() {
             if (confirm('Logout?')) {
-                localStorage.removeItem('lingolink_current_user'); localStorage.removeItem('lingolink_token'); localStorage.removeItem('lingolink_refresh');
+                localStorage.removeItem('lingolink_current_user');
                 location.reload();
             }
         }
@@ -887,15 +891,13 @@
             errorDiv.classList.remove('show');
             if (!newName || !newEmail) { errorDiv.textContent = 'Name and email are required'; errorDiv.classList.add('show'); return; }
             try {
-                const response = await fetch(API_BASE + '/auth/update/', { headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('lingolink_token') || '') },
+                const response = await fetch(API_BASE + '/auth/update/', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email: currentUser.email, new_name: newName, new_email: newEmail, new_password: newPassword || null })
                 });
                 const data = await response.json();
                 if (!response.ok) throw new Error(data.detail || 'Update failed');
                 currentUser = data.user;
-                if (data.access_token) localStorage.setItem('lingolink_token', data.access_token);
-                if (data.refresh_token) localStorage.setItem('lingolink_refresh', data.refresh_token);
                 localStorage.setItem('lingolink_current_user', JSON.stringify(data.user));
                 document.getElementById('userName').textContent = data.user.name;
                 closeEditProfile();
@@ -930,16 +932,18 @@
         function populateAllLanguageSelects() {
             const selects = [
                 document.getElementById('sourceLang'), document.getElementById('targetLang'),
-                document.getElementById('targetLangRecord'),
-                document.getElementById('targetLangUpload')
+                document.getElementById('sourceLangRecord'), document.getElementById('targetLangRecord'),
+                document.getElementById('sourceLangUpload'), document.getElementById('targetLangUpload')
             ];
             selects.forEach(select => {
                 languages.forEach(lang => select.appendChild(new Option(`${lang.flag} ${lang.name}`, lang.code)));
             });
             document.getElementById('sourceLang').value = 'auto';
-            document.getElementById('targetLang').value = 'eng_Latn';
-            document.getElementById('targetLangRecord').value = 'eng_Latn';
-            document.getElementById('targetLangUpload').value = 'eng_Latn';
+            document.getElementById('targetLang').value = 'swh_Latn';
+            document.getElementById('sourceLangRecord').value = 'eng_Latn';
+            document.getElementById('targetLangRecord').value = 'swh_Latn';
+            document.getElementById('sourceLangUpload').value = 'eng_Latn';
+            document.getElementById('targetLangUpload').value = 'swh_Latn';
         }
         
         async function toggleRecording() {
@@ -988,7 +992,7 @@
         
         async function processRecording() {
             if (!recordedBlob) return;
-            const sourceLang = 'eng_Latn';
+            const sourceLang = document.getElementById('sourceLangRecord').value;
             const targetLang = document.getElementById('targetLangRecord').value;
             document.getElementById('loadingRecord').classList.add('show');
             document.getElementById('recordResultBox').classList.remove('show');
@@ -997,7 +1001,7 @@
             formData.append('source_lang', sourceLang);
             formData.append('target_lang', targetLang);
             try {
-                const response = await fetch(API_BASE + '/translate_audio/', { method: 'POST', headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('lingolink_token') || '') }, body: formData });
+                const response = await fetch(API_BASE + '/translate_audio/', { method: 'POST', body: formData });
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const data = await response.json();
                 document.getElementById('recordSourceText').textContent = data.source_text || 'No speech detected';
@@ -1026,7 +1030,7 @@
         function checkUploadReady() { document.getElementById('uploadTranslateBtn').disabled = !(uploadedAudioFile || uploadedVideoFile); }
         
         async function translateUploadedMedia() {
-            const sourceLang = 'eng_Latn';
+            const sourceLang = document.getElementById('sourceLangUpload').value;
             const targetLang = document.getElementById('targetLangUpload').value;
             document.getElementById('loadingUpload').classList.add('show');
             document.getElementById('uploadResultBox').classList.remove('show');
@@ -1037,7 +1041,7 @@
             formData.append('source_lang', sourceLang);
             formData.append('target_lang', targetLang);
             try {
-                const response = await fetch(API_BASE + '/translate_audio/', { method: 'POST', headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('lingolink_token') || '') }, body: formData });
+                const response = await fetch(API_BASE + '/translate_audio/', { method: 'POST', body: formData });
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const data = await response.json();
                 document.getElementById('uploadSourceText').textContent = data.source_text || 'No speech detected';
@@ -1059,7 +1063,7 @@
             document.getElementById('resultBox').classList.remove('show');
             document.getElementById('translateBtn').disabled = true;
             try {
-                const response = await fetch(API_BASE + '/translate_text/', { headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('lingolink_token') || '') },
+                const response = await fetch(API_BASE + '/translate_text/', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text, source_lang: sourceLang, target_lang: targetLang })
                 });
@@ -1132,9 +1136,6 @@
     </script>
 </body>
 </html>
-
-
-
 
 
 

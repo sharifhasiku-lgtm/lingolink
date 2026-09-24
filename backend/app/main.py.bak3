@@ -670,7 +670,7 @@ async def translate_text(
 @app.post("/translate_audio/")
 async def translate_audio(
     file: UploadFile = File(...),
-    source_lang: str = "eng_Latn", target_lang: str = "eng_Latn",
+    source_lang: str = "eng_Latn", target_lang: str = "swh_Latn",
     db: Session = Depends(get_db),
 ):
     load_models(); load_whisper()
@@ -726,4 +726,3 @@ async def delete_history(
         raise HTTPException(status_code=404, detail="Record not found")
     db.delete(r); db.commit()
     return {"message": "Record deleted"}
-

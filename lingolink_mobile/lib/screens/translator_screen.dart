@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -15,7 +15,7 @@ class TranslatorScreen extends StatefulWidget {
 }
 
 class _TranslatorScreenState extends State<TranslatorScreen> {
-  static const String _wsUrl = 'ws://localhost:8000/ws/agent';
+      static const String _wsUrl = 'ws://192.168.1.2:8000/ws/agent';
 
   final WebSocketService _ws = WebSocketService();
   final AudioService _audio = AudioService();

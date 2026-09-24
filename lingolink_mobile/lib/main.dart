@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
-import 'screens/translator_screen.dart';
+﻿import 'package:flutter/material.dart';
+import 'screens/landing_screen.dart';
 
 void main() {
   runApp(const LingoLinkApp());
@@ -21,7 +21,7 @@ class LingoLinkApp extends StatelessWidget {
         useMaterial3: true,
         scaffoldBackgroundColor: const Color(0xFF0F0F1E),
       ),
-      home: const TranslatorScreen(),
+      home: const LandingScreen(),
     );
   }
 }
