@@ -125,7 +125,7 @@ def load_models():
         )
         print("NLLB-200 loaded", flush=True)
 
-def translate_text(text, source_lang, target_lang):
+def _do_translate(text, source_lang, target_lang):
     if os.getenv("USE_LIGHT_MODELS", "0") == "1":
         return _translate_light(text, source_lang, target_lang)
     load_models()
@@ -320,7 +320,7 @@ async def agent_websocket(ws: WebSocket):
                     target = session["target_lang"]
                     if source_nllb and source_nllb != target:
                         try:
-                            translated = translate_text(text, source_nllb, target)
+                            translated = _do_translate(text, source_nllb, target)
                             await safe_send(ws, {"type": "transcript", "speaker": f"{speaker}_translated",
                                 "text": translated, "chunk": chunk_id})
                         except Exception as e:
@@ -397,7 +397,7 @@ async def dubbing_start(
         translated_text = source_text
     else:
         try:
-            translated_text = translate_text(source_text, source_nllb, target_lang)
+            translated_text = _do_translate(source_text, source_nllb, target_lang)
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Translation failed: {str(e)[:200]}")
 
@@ -707,7 +707,7 @@ async def translate_text(
     db: Session = Depends(get_db),
 ):
     start = time.time()
-    translated = translate_text(request.text, request.source_lang, request.target_lang)
+    translated = _do_translate(request.text, request.source_lang, request.target_lang)
     tts_filename = f"tts_{int(time.time())}.mp3"
     tts_url = None
     try:
@@ -737,7 +737,7 @@ async def translate_audio(
         shutil.copyfileobj(file.file, buf)
     stt = whisper_model.transcribe(fl, fp16=False)
     src_text = stt["text"].strip()
-    translated = translate_text(src_text, source_lang, target_lang)
+    translated = _do_translate(src_text, source_lang, target_lang)
     tts_filename = f"{file.filename}_translated_{int(time.time())}.mp3"
     tts_url = None
     try:
