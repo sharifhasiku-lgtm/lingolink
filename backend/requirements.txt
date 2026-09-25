@@ -9,8 +9,8 @@ python-jose[cryptography]
 passlib[bcrypt]
 bcrypt==4.0.1
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.14.0+cpu
-torchaudio==2.14.0+cpu
+torch==2.11.0+cpu
+torchaudio==2.11.0+cpu
 transformers
 soundfile
 numpy
