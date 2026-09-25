@@ -66,52 +66,119 @@ translation_model = None
 whisper_model = None
 _models_loaded = False
 
+OPUS_MT_MAP = {
+    ("eng_Latn", "swh_Latn"): "Helsinki-NLP/opus-mt-en-sw",
+    ("swh_Latn", "eng_Latn"): "Helsinki-NLP/opus-mt-sw-en",
+    ("eng_Latn", "fra_Latn"): "Helsinki-NLP/opus-mt-en-fr",
+    ("fra_Latn", "eng_Latn"): "Helsinki-NLP/opus-mt-fr-en",
+    ("eng_Latn", "spa_Latn"): "Helsinki-NLP/opus-mt-en-es",
+    ("spa_Latn", "eng_Latn"): "Helsinki-NLP/opus-mt-es-en",
+    ("eng_Latn", "deu_Latn"): "Helsinki-NLP/opus-mt-en-de",
+    ("deu_Latn", "eng_Latn"): "Helsinki-NLP/opus-mt-de-en",
+    ("eng_Latn", "fra_Latn"): "Helsinki-NLP/opus-mt-en-fr",
+    ("eng_Latn", "ita_Latn"): "Helsinki-NLP/opus-mt-en-it",
+    ("ita_Latn", "eng_Latn"): "Helsinki-NLP/opus-mt-it-en",
+    ("eng_Latn", "por_Latn"): "Helsinki-NLP/opus-mt-en-pt",
+    ("por_Latn", "eng_Latn"): "Helsinki-NLP/opus-mt-pt-en",
+    ("eng_Latn", "rus_Cyrl"): "Helsinki-NLP/opus-mt-en-ru",
+    ("rus_Cyrl", "eng_Latn"): "Helsinki-NLP/opus-mt-ru-en",
+    ("eng_Latn", "arb_Arab"): "Helsinki-NLP/opus-mt-en-ar",
+    ("arb_Arab", "eng_Latn"): "Helsinki-NLP/opus-mt-ar-en",
+    ("eng_Latn", "hin_Deva"): "Helsinki-NLP/opus-mt-en-hi",
+    ("hin_Deva", "eng_Latn"): "Helsinki-NLP/opus-mt-hi-en",
+    ("eng_Latn", "zho_Hans"): "Helsinki-NLP/opus-mt-en-zh",
+    ("zho_Hans", "eng_Latn"): "Helsinki-NLP/opus-mt-zh-en",
+}
+
+_light_cache = {}
+
+def _translate_light(text, source_lang, target_lang):
+    from transformers import MarianMTModel, MarianTokenizer
+    repo = OPUS_MT_MAP.get((source_lang, target_lang))
+    if repo is None:
+        return text
+    if repo not in _light_cache:
+        print(f"Loading {repo}...", flush=True)
+        tok = MarianTokenizer.from_pretrained(repo)
+        mdl = MarianMTModel.from_pretrained(repo)
+        _light_cache[repo] = (tok, mdl)
+        print(f"Loaded {repo}", flush=True)
+    tok, mdl = _light_cache[repo]
+    batch = tok([text], return_tensors="pt")
+    gen = mdl.generate(**batch, max_length=256)
+    return tok.batch_decode(gen, skip_special_tokens=True)[0]
+
 def load_models():
     global translation_tokenizer, translation_model
+    if os.getenv("USE_LIGHT_MODELS", "0") == "1":
+        return
     if translation_model is None:
+        from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+        import torch as _torch
+        _torch.set_num_threads(1)
         print("Loading NLLB-200 distilled 600M...", flush=True)
         translation_tokenizer = AutoTokenizer.from_pretrained("facebook/nllb-200-distilled-600M")
-        translation_model = AutoModelForSeq2SeqLM.from_pretrained("facebook/nllb-200-distilled-600M")
-        print("ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ NLLB-200 loaded!", flush=True)
+        translation_model = AutoModelForSeq2SeqLM.from_pretrained(
+            "facebook/nllb-200-distilled-600M",
+            torch_dtype=_torch.float16,
+            low_cpu_mem_usage=True,
+        )
+        print("NLLB-200 loaded", flush=True)
+
+def translate_text(text, source_lang, target_lang):
+    if os.getenv("USE_LIGHT_MODELS", "0") == "1":
+        return _translate_light(text, source_lang, target_lang)
+    load_models()
+    if source_lang == target_lang:
+        return text
+    translation_tokenizer.src_lang = source_lang
+    enc = translation_tokenizer(text, return_tensors="pt")
+    tokens = translation_model.generate(
+        **enc,
+        forced_bos_token_id=translation_tokenizer.convert_tokens_to_ids(target_lang),
+        max_length=256,
+    )
+    return translation_tokenizer.batch_decode(tokens, skip_special_tokens=True)[0]
 
 def load_whisper():
     global whisper_model
     if whisper_model is None:
-        print("Loading Whisper 'base'...", flush=True)
+        size = "tiny" if os.getenv("USE_LIGHT_MODELS", "0") == "1" else "base"
+        print(f"Loading Whisper '{size}'...", flush=True)
         import whisper
-        whisper_model = whisper.load_model("base")
-        print("ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Whisper 'base' loaded!", flush=True)
+        whisper_model = whisper.load_model(size)
+        print(f"Whisper '{size}' loaded", flush=True)
 
 def _preload_models():
     global _models_loaded
     try:
-        print("ÃƒÂ°Ã…Â¸Ã…Â¡Ã¢â€šÂ¬ Preloading NLLB-200...", flush=True)
+        print("ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ Preloading NLLB-200...", flush=True)
         load_models()
     except Exception as e:
-        print(f"ÃƒÂ¢Ã‚ÂÃ…â€™ NLLB preload error: {e}", flush=True)
+        print(f"ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ NLLB preload error: {e}", flush=True)
     try:
-        print("ÃƒÂ°Ã…Â¸Ã…Â¡Ã¢â€šÂ¬ Preloading Whisper base...", flush=True)
+        print("ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ Preloading Whisper base...", flush=True)
         load_whisper()
     except Exception as e:
-        print(f"ÃƒÂ¢Ã‚ÂÃ…â€™ Whisper preload error: {e}", flush=True)
+        print(f"ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Whisper preload error: {e}", flush=True)
     _models_loaded = True
-    print("ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ All models preloaded. Backend ready.", flush=True)
+    print("ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ All models preloaded. Backend ready.", flush=True)
 
 @app.on_event("startup")
 async def preload_on_startup():
     if os.getenv("SKIP_MODEL_PRELOAD", "0") == "1":
-        print("ÃƒÂ¢Ã‚ÂÃ‚Â­ÃƒÂ¯Ã‚Â¸Ã‚Â  SKIP_MODEL_PRELOAD=1 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â models will load lazily on first request", flush=True)
+        print("ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â  SKIP_MODEL_PRELOAD=1 ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â models will load lazily on first request", flush=True)
     else:
-        print("ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Â¬ Startup: kicking off background model preload", flush=True)
+        print("ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â½ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ Startup: kicking off background model preload", flush=True)
         threading.Thread(target=_preload_models, daemon=True).start()
 
     try:
         db = SessionLocal()
         seed_rbac(db)
         db.close()
-        print("ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ RBAC seeded", flush=True)
+        print("ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ RBAC seeded", flush=True)
     except Exception as e:
-        print(f"ÃƒÂ¢Ã‚ÂÃ…â€™ RBAC seed failed: {e}", flush=True)
+        print(f"ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ RBAC seed failed: {e}", flush=True)
 
 
 @app.get("/health")
@@ -181,7 +248,7 @@ async def safe_send(ws: WebSocket, data: dict):
 async def agent_websocket(ws: WebSocket):
     import numpy as np  # lazy import
     await ws.accept()
-    print(f"ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Agent connected", flush=True)
+    print(f"ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Agent connected", flush=True)
     session = {"call_active": False, "call_id": None, "target_lang": "eng_Latn", "chunk_count": 0}
     try:
         while True:
@@ -200,7 +267,7 @@ async def agent_websocket(ws: WebSocket):
                 await safe_send(ws, {"type": "system", "text": "Loading Whisper (~30s)..."})
                 try:
                     load_whisper()
-                    await safe_send(ws, {"type": "system", "text": "ÃƒÂ°Ã…Â¸Ã…Â½Ã¢â€žÂ¢ÃƒÂ¯Ã‚Â¸Ã‚Â Ready."})
+                    await safe_send(ws, {"type": "system", "text": "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â½ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â Ready."})
                 except Exception as e:
                     await safe_send(ws, {"type": "error", "message": str(e)})
 
@@ -253,13 +320,7 @@ async def agent_websocket(ws: WebSocket):
                     target = session["target_lang"]
                     if source_nllb and source_nllb != target:
                         try:
-                            load_models()
-                            translation_tokenizer.src_lang = source_nllb
-                            encoded = translation_tokenizer(text, return_tensors="pt")
-                            tokens = translation_model.generate(**encoded,
-                                forced_bos_token_id=translation_tokenizer.convert_tokens_to_ids(target),
-                                max_length=256)
-                            translated = translation_tokenizer.batch_decode(tokens, skip_special_tokens=True)[0]
+                            translated = translate_text(text, source_nllb, target)
                             await safe_send(ws, {"type": "transcript", "speaker": f"{speaker}_translated",
                                 "text": translated, "chunk": chunk_id})
                         except Exception as e:
@@ -273,7 +334,7 @@ async def agent_websocket(ws: WebSocket):
                         except:
                             pass
     except WebSocketDisconnect:
-        print("ÃƒÂ¢Ã‚ÂÃ…â€™ Agent disconnected", flush=True)
+        print("ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Agent disconnected", flush=True)
     except Exception as e:
         print(f"WebSocket error: {e}", flush=True)
 
@@ -336,13 +397,7 @@ async def dubbing_start(
         translated_text = source_text
     else:
         try:
-            load_models()
-            translation_tokenizer.src_lang = source_nllb
-            encoded = translation_tokenizer(source_text, return_tensors="pt")
-            tokens = translation_model.generate(**encoded,
-                forced_bos_token_id=translation_tokenizer.convert_tokens_to_ids(target_lang),
-                max_length=1024)
-            translated_text = translation_tokenizer.batch_decode(tokens, skip_special_tokens=True)[0]
+            translated_text = translate_text(source_text, source_nllb, target_lang)
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Translation failed: {str(e)[:200]}")
 
@@ -651,14 +706,8 @@ async def translate_text(
     request: TranslationRequest,
     db: Session = Depends(get_db),
 ):
-    load_models()
     start = time.time()
-    translation_tokenizer.src_lang = request.source_lang
-    enc = translation_tokenizer(request.text, return_tensors="pt")
-    tokens = translation_model.generate(**enc,
-        forced_bos_token_id=translation_tokenizer.convert_tokens_to_ids(request.target_lang),
-        max_length=128)
-    translated = translation_tokenizer.batch_decode(tokens, skip_special_tokens=True)[0]
+    translated = translate_text(request.text, request.source_lang, request.target_lang)
     tts_filename = f"tts_{int(time.time())}.mp3"
     tts_url = None
     try:
@@ -688,12 +737,7 @@ async def translate_audio(
         shutil.copyfileobj(file.file, buf)
     stt = whisper_model.transcribe(fl, fp16=False)
     src_text = stt["text"].strip()
-    translation_tokenizer.src_lang = source_lang
-    enc = translation_tokenizer(src_text, return_tensors="pt")
-    tokens = translation_model.generate(**enc,
-        forced_bos_token_id=translation_tokenizer.convert_tokens_to_ids(target_lang),
-        max_length=128)
-    translated = translation_tokenizer.batch_decode(tokens, skip_special_tokens=True)[0]
+    translated = translate_text(src_text, source_lang, target_lang)
     tts_filename = f"{file.filename}_translated_{int(time.time())}.mp3"
     tts_url = None
     try:
