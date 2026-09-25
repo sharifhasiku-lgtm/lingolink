@@ -1,12 +1,10 @@
-﻿from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Header, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Header, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from pydantic import BaseModel
 from typing import Optional, List
-import torch
 import shutil
 import time
 import edge_tts
@@ -18,7 +16,6 @@ import subprocess
 import uuid
 import threading
 import wave
-import numpy as np
 from datetime import datetime, timedelta
 
 from app.models import (
@@ -40,7 +37,7 @@ os.environ["OMP_NUM_THREADS"] = "2"
 os.environ["MKL_NUM_THREADS"] = "2"
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 os.environ["OPENBLAS_NUM_THREADS"] = "2"
-torch.set_num_threads(2)
+# torch.set_num_threads(2)  # moved to load_models()
 
 Base.metadata.create_all(bind=engine)
 
@@ -75,7 +72,7 @@ def load_models():
         print("Loading NLLB-200 distilled 600M...", flush=True)
         translation_tokenizer = AutoTokenizer.from_pretrained("facebook/nllb-200-distilled-600M")
         translation_model = AutoModelForSeq2SeqLM.from_pretrained("facebook/nllb-200-distilled-600M")
-        print("✅ NLLB-200 loaded!", flush=True)
+        print("ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ NLLB-200 loaded!", flush=True)
 
 def load_whisper():
     global whisper_model
@@ -83,35 +80,43 @@ def load_whisper():
         print("Loading Whisper 'base'...", flush=True)
         import whisper
         whisper_model = whisper.load_model("base")
-        print("✅ Whisper 'base' loaded!", flush=True)
+        print("ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Whisper 'base' loaded!", flush=True)
 
 def _preload_models():
     global _models_loaded
     try:
-        print("🚀 Preloading NLLB-200...", flush=True)
+        print("ÃƒÂ°Ã…Â¸Ã…Â¡Ã¢â€šÂ¬ Preloading NLLB-200...", flush=True)
         load_models()
     except Exception as e:
-        print(f"❌ NLLB preload error: {e}", flush=True)
+        print(f"ÃƒÂ¢Ã‚ÂÃ…â€™ NLLB preload error: {e}", flush=True)
     try:
-        print("🚀 Preloading Whisper base...", flush=True)
+        print("ÃƒÂ°Ã…Â¸Ã…Â¡Ã¢â€šÂ¬ Preloading Whisper base...", flush=True)
         load_whisper()
     except Exception as e:
-        print(f"❌ Whisper preload error: {e}", flush=True)
+        print(f"ÃƒÂ¢Ã‚ÂÃ…â€™ Whisper preload error: {e}", flush=True)
     _models_loaded = True
-    print("✅ All models preloaded. Backend ready.", flush=True)
+    print("ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ All models preloaded. Backend ready.", flush=True)
 
 @app.on_event("startup")
 async def preload_on_startup():
-    print("🎬 Startup: kicking off background model preload", flush=True)
-    threading.Thread(target=_preload_models, daemon=True).start()
+    if os.getenv("SKIP_MODEL_PRELOAD", "0") == "1":
+        print("ÃƒÂ¢Ã‚ÂÃ‚Â­ÃƒÂ¯Ã‚Â¸Ã‚Â  SKIP_MODEL_PRELOAD=1 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â models will load lazily on first request", flush=True)
+    else:
+        print("ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Â¬ Startup: kicking off background model preload", flush=True)
+        threading.Thread(target=_preload_models, daemon=True).start()
 
     try:
         db = SessionLocal()
         seed_rbac(db)
         db.close()
-        print("✅ RBAC seeded", flush=True)
+        print("ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ RBAC seeded", flush=True)
     except Exception as e:
-        print(f"❌ RBAC seed failed: {e}", flush=True)
+        print(f"ÃƒÂ¢Ã‚ÂÃ…â€™ RBAC seed failed: {e}", flush=True)
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
 VOICE_MAP = {
     "eng_Latn": "en-US-AriaNeural", "swh_Latn": "sw-KE-ZuriNeural",
@@ -154,11 +159,13 @@ WHISPER_TO_NLLB = {
     "zu": "zul_Latn", "xh": "xho_Latn", "af": "afr_Latn", "so": "som_Latn",
 }
 
-def pcm_to_float32(pcm_bytes: bytes) -> np.ndarray:
+def pcm_to_float32(pcm_bytes: bytes):
+    import numpy as np
     audio_int16 = np.frombuffer(pcm_bytes, dtype=np.int16)
     return audio_int16.astype(np.float32) / 32768.0
 
-def is_silent(audio: np.ndarray, threshold: float = 0.008) -> bool:
+def is_silent(audio, threshold: float = 0.008) -> bool:
+    import numpy as np
     if len(audio) == 0:
         return True
     rms = float(np.sqrt(np.mean(audio ** 2)))
@@ -172,8 +179,9 @@ async def safe_send(ws: WebSocket, data: dict):
 
 @app.websocket("/ws/agent")
 async def agent_websocket(ws: WebSocket):
+    import numpy as np  # lazy import
     await ws.accept()
-    print(f"✅ Agent connected", flush=True)
+    print(f"ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Agent connected", flush=True)
     session = {"call_active": False, "call_id": None, "target_lang": "eng_Latn", "chunk_count": 0}
     try:
         while True:
@@ -192,7 +200,7 @@ async def agent_websocket(ws: WebSocket):
                 await safe_send(ws, {"type": "system", "text": "Loading Whisper (~30s)..."})
                 try:
                     load_whisper()
-                    await safe_send(ws, {"type": "system", "text": "🎙️ Ready."})
+                    await safe_send(ws, {"type": "system", "text": "ÃƒÂ°Ã…Â¸Ã…Â½Ã¢â€žÂ¢ÃƒÂ¯Ã‚Â¸Ã‚Â Ready."})
                 except Exception as e:
                     await safe_send(ws, {"type": "error", "message": str(e)})
 
@@ -265,7 +273,7 @@ async def agent_websocket(ws: WebSocket):
                         except:
                             pass
     except WebSocketDisconnect:
-        print("❌ Agent disconnected", flush=True)
+        print("ÃƒÂ¢Ã‚ÂÃ…â€™ Agent disconnected", flush=True)
     except Exception as e:
         print(f"WebSocket error: {e}", flush=True)
 
