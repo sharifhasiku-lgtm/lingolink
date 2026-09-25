@@ -1,4 +1,4 @@
-﻿from sqlalchemy import (
+from sqlalchemy import (
     create_engine, Column, Integer, String, DateTime, Text,
     ForeignKey, Boolean, Table
 )
@@ -7,7 +7,7 @@ from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
 import os
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://lingo:lingopass@postgres:5432/lingolink_db")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg2://lingo:lingopass@postgres:5432/lingolink_db")
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
