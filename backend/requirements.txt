@@ -1,4 +1,4 @@
-﻿fastapi
+fastapi
 uvicorn[standard]
 sqlalchemy
 psycopg2-binary
@@ -7,8 +7,9 @@ python-multipart
 python-jose[cryptography]
 passlib[bcrypt]
 bcrypt==4.0.1
-torch --index-url https://download.pytorch.org/whl/cpu
-torchaudio --index-url https://download.pytorch.org/whl/cpu
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.2.0+cpu
+torchaudio==2.2.0+cpu
 transformers
 soundfile
 numpy
