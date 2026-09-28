@@ -92,9 +92,8 @@ def load_models():
 
 
 def _do_translate(text, source_lang, target_lang):
-    """Translate via MyMemory (free, no API key)."""
-    from deep_translator import MyMemoryTranslator
-    import time as _time
+    """Translate via MyMemory REST API directly (no deep-translator library)."""
+    import requests
 
     if source_lang == target_lang:
         return text
@@ -105,21 +104,27 @@ def _do_translate(text, source_lang, target_lang):
     src_mm = MM_MAP.get(src, "en-GB")
     tgt_mm = MM_MAP.get(tgt, "sw-KE")
 
-    print(f"[TRANSLATE] src={src}, src_mm={src_mm}, tgt={tgt}, tgt_mm={tgt_mm}", flush=True)
+    url = "https://api.mymemory.translated.net/get"
+    params = {"q": text, "langpair": f"{src_mm}|{tgt_mm}"}
 
-    for attempt in range(3):
-        try:
-            translator = MyMemoryTranslator(source=src_mm, target=tgt_mm)
-            result = translator.translate(text)
-            print(f"[TRANSLATE] attempt {attempt+1} result: {result[:80] if result else None}", flush=True)
-            if result and result.lower() != text.lower():
-                return result
-        except Exception as e:
-            print(f"[TRANSLATE] attempt {attempt+1} failed: {e}", flush=True)
-            if attempt < 2:
-                _time.sleep(2 * (attempt + 1))
+    print(f"[TRANSLATE] src={src_mm}, tgt={tgt_mm}, text={text[:50]}", flush=True)
 
-    return text
+    try:
+        resp = requests.get(url, params=params, timeout=20)
+        if resp.status_code != 200:
+            print(f"[TRANSLATE] HTTP {resp.status_code}: {resp.text[:200]}", flush=True)
+            return text
+
+        data = resp.json()
+        translated = data.get("responseData", {}).get("translatedText", "")
+        print(f"[TRANSLATE] result: {translated[:80]}", flush=True)
+
+        if translated and translated.lower() != text.lower():
+            return translated
+        return text
+    except Exception as e:
+        print(f"[TRANSLATE] error: {e}", flush=True)
+        return text
 
 
 def load_whisper():
