@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Header, WebSocket, WebSocketDisconnect
+﻿from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Header, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
@@ -37,7 +37,6 @@ os.environ["OMP_NUM_THREADS"] = "2"
 os.environ["MKL_NUM_THREADS"] = "2"
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 os.environ["OPENBLAS_NUM_THREADS"] = "2"
-# torch.set_num_threads(2)  # moved to load_models()
 
 Base.metadata.create_all(bind=engine)
 
@@ -61,12 +60,10 @@ app.mount("/data/dubbed", StaticFiles(directory="data/dubbed"), name="dubbed")
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "lingolink256"
 
-translation_tokenizer = None
-translation_model = None
 whisper_model = None
 _models_loaded = False
 
-# NLLB codes to Google Translate language codes
+# NLLB codes → Google Translate language codes
 NLLB_TO_GOOGLE = {
     "eng_Latn": "en", "swh_Latn": "sw", "yor_Latn": "yo", "hau_Latn": "ha",
     "ibo_Latn": "ig", "zul_Latn": "zu", "amh_Ethi": "am", "som_Latn": "so",
@@ -77,14 +74,15 @@ NLLB_TO_GOOGLE = {
     "afr_Latn": "af",
 }
 
+
 def load_models():
-    """No-op - translation handled by googletrans API."""
+    """No-op — translation handled by deep-translator API."""
     return
 
+
 def _do_translate(text, source_lang, target_lang):
-    """Translate via googletrans (free, no API key)."""
-    import asyncio
-    from googletrans import Translator
+    """Translate via deep-translator (free, no API key)."""
+    from deep_translator import GoogleTranslator
 
     if source_lang == target_lang:
         return text
@@ -92,18 +90,14 @@ def _do_translate(text, source_lang, target_lang):
     src = NLLB_TO_GOOGLE.get(source_lang, "en")
     tgt = NLLB_TO_GOOGLE.get(target_lang, "en")
 
-    async def _run():
-        async with Translator() as translator:
-            result = await translator.translate(text, src=src, dest=tgt)
-            return result.text
-
     try:
-        asyncio.get_running_loop()
-        import concurrent.futures
-        with concurrent.futures.ThreadPoolExecutor() as pool:
-            return pool.submit(asyncio.run, _run()).result()
-    except RuntimeError:
-        return asyncio.run(_run())
+        translator = GoogleTranslator(source=src, target=tgt)
+        result = translator.translate(text)
+        return result if result else text
+    except Exception as e:
+        print(f"Translation error: {e}", flush=True)
+        return text
+
 
 def load_whisper():
     global whisper_model
@@ -114,41 +108,39 @@ def load_whisper():
         whisper_model = whisper.load_model(size)
         print(f"Whisper '{size}' loaded", flush=True)
 
+
 def _preload_models():
     global _models_loaded
     try:
-        print("ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ Preloading NLLB-200...", flush=True)
-        load_models()
-    except Exception as e:
-        print(f"ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ NLLB preload error: {e}", flush=True)
-    try:
-        print("ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ Preloading Whisper base...", flush=True)
+        print("Preloading Whisper base...", flush=True)
         load_whisper()
     except Exception as e:
-        print(f"ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ Whisper preload error: {e}", flush=True)
+        print(f"Whisper preload error: {e}", flush=True)
     _models_loaded = True
-    print("ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦ All models preloaded. Backend ready.", flush=True)
+    print("All models preloaded. Backend ready.", flush=True)
+
 
 @app.on_event("startup")
 async def preload_on_startup():
     if os.getenv("SKIP_MODEL_PRELOAD", "0") == "1":
-        print("ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â  SKIP_MODEL_PRELOAD=1 ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â models will load lazily on first request", flush=True)
+        print("SKIP_MODEL_PRELOAD=1 — models will load lazily on first request", flush=True)
     else:
-        print("ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â½ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ Startup: kicking off background model preload", flush=True)
+        print("Startup: kicking off background model preload", flush=True)
         threading.Thread(target=_preload_models, daemon=True).start()
 
     try:
         db = SessionLocal()
         seed_rbac(db)
         db.close()
-        print("ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦ RBAC seeded", flush=True)
+        print("RBAC seeded", flush=True)
     except Exception as e:
-        print(f"ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ RBAC seed failed: {e}", flush=True)
+        print(f"RBAC seed failed: {e}", flush=True)
 
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
 
 VOICE_MAP = {
     "eng_Latn": "en-US-AriaNeural", "swh_Latn": "sw-KE-ZuriNeural",
@@ -165,8 +157,10 @@ VOICE_MAP = {
     "afr_Latn": "af-ZA-AdriNeural", "som_Latn": "so-SO-UbaxNeural",
 }
 
+
 def get_voice(lang_code):
     return VOICE_MAP.get(lang_code, "en-US-AriaNeural")
+
 
 def verify_admin_basic(authorization: Optional[str] = Header(None)):
     if not authorization or not authorization.startswith("Basic "):
@@ -180,6 +174,7 @@ def verify_admin_basic(authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=401, detail="Invalid admin credentials")
     return True
 
+
 # ===== WEBSOCKET =====
 
 WHISPER_TO_NLLB = {
@@ -191,10 +186,12 @@ WHISPER_TO_NLLB = {
     "zu": "zul_Latn", "xh": "xho_Latn", "af": "afr_Latn", "so": "som_Latn",
 }
 
+
 def pcm_to_float32(pcm_bytes: bytes):
     import numpy as np
     audio_int16 = np.frombuffer(pcm_bytes, dtype=np.int16)
     return audio_int16.astype(np.float32) / 32768.0
+
 
 def is_silent(audio, threshold: float = 0.008) -> bool:
     import numpy as np
@@ -203,17 +200,19 @@ def is_silent(audio, threshold: float = 0.008) -> bool:
     rms = float(np.sqrt(np.mean(audio ** 2)))
     return rms < threshold
 
+
 async def safe_send(ws: WebSocket, data: dict):
     try:
         await ws.send_json(data)
     except Exception:
         pass
 
+
 @app.websocket("/ws/agent")
 async def agent_websocket(ws: WebSocket):
-    import numpy as np  # lazy import
+    import numpy as np
     await ws.accept()
-    print(f"ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦ Agent connected", flush=True)
+    print("Agent connected", flush=True)
     session = {"call_active": False, "call_id": None, "target_lang": "eng_Latn", "chunk_count": 0}
     try:
         while True:
@@ -232,7 +231,7 @@ async def agent_websocket(ws: WebSocket):
                 await safe_send(ws, {"type": "system", "text": "Loading Whisper (~30s)..."})
                 try:
                     load_whisper()
-                    await safe_send(ws, {"type": "system", "text": "ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â½ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¾ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â Ready."})
+                    await safe_send(ws, {"type": "system", "text": "Ready."})
                 except Exception as e:
                     await safe_send(ws, {"type": "error", "message": str(e)})
 
@@ -289,39 +288,36 @@ async def agent_websocket(ws: WebSocket):
                             await safe_send(ws, {"type": "transcript", "speaker": f"{speaker}_translated",
                                 "text": translated, "chunk": chunk_id})
                         except Exception as e:
-                            print(f"Translation error: {e}", flush=True)
-                except Exception as e:
-                    print(f"Whisper error: {e}", flush=True)
+                            print(f"Translate error: {e}", flush=True)
                 finally:
                     if tmp_path and os.path.exists(tmp_path):
                         try:
-                            os.remove(tmp_path)
-                        except:
+                            os.unlink(tmp_path)
+                        except Exception:
                             pass
+
     except WebSocketDisconnect:
-        print("ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ Agent disconnected", flush=True)
-    except Exception as e:
-        print(f"WebSocket error: {e}", flush=True)
+        print("Agent disconnected", flush=True)
+
+
+# ===== MODELS =====
+
+class TranslationRequest(BaseModel):
+    text: str
+    source_lang: str = "eng_Latn"
+    target_lang: str = "swh_Latn"
+
+
+class AdminLoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class DubbingStartResponse(BaseModel):
+    job_id: str
+
 
 # ===== DUBBING =====
-
-def run_ffmpeg_extract_audio(video_path: str, audio_out: str) -> bool:
-    try:
-        cmd = ["ffmpeg", "-y", "-i", video_path, "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", audio_out]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
-        return result.returncode == 0
-    except Exception:
-        return False
-
-def run_ffmpeg_mux(video_path: str, dubbed_audio: str, output_path: str) -> bool:
-    try:
-        cmd = ["ffmpeg", "-y", "-i", video_path, "-i", dubbed_audio,
-               "-c:v", "copy", "-c:a", "aac",
-               "-map", "0:v:0", "-map", "1:a:0", "-shortest", output_path]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
-        return result.returncode == 0
-    except Exception:
-        return False
 
 @app.post("/dubbing/start")
 async def dubbing_start(
@@ -332,188 +328,128 @@ async def dubbing_start(
     _: None = Depends(require_permission("dubbing")),
 ):
     job_id = str(uuid.uuid4())[:8]
-    start_time = time.time()
+    input_path = f"data/videos/{job_id}_input.mp4"
+    with open(input_path, "wb") as f:
+        shutil.copyfileobj(file.file, f)
 
-    ext = os.path.splitext(file.filename)[1].lower()
-    if ext not in [".mp4", ".webm", ".mov", ".mkv", ".avi"]:
-        raise HTTPException(status_code=400, detail=f"Unsupported format: {ext}")
+    output_path = f"data/dubbed/{job_id}_dubbed.mp4"
+    audio_path = f"data/audio/{job_id}.wav"
 
-    video_path = f"data/videos/{job_id}{ext}"
-    with open(video_path, "wb") as buf:
-        shutil.copyfileobj(file.file, buf)
-
-    audio_path = f"data/audio/{job_id}_extracted.wav"
-    if not run_ffmpeg_extract_audio(video_path, audio_path):
-        raise HTTPException(status_code=500, detail="Failed to extract audio")
-
-    try:
-        load_whisper()
-        result = whisper_model.transcribe(audio_path, fp16=False, language=None, task="transcribe")
-        source_text = result.get("text", "").strip()
-        detected_lang = result.get("language", "en")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)[:200]}")
-
-    if not source_text:
-        raise HTTPException(status_code=400, detail="No speech detected")
-
-    source_nllb = WHISPER_TO_NLLB.get(detected_lang, "eng_Latn")
-    if source_nllb == target_lang:
-        translated_text = source_text
-    else:
+    def process():
         try:
+            subprocess.run(["ffmpeg", "-y", "-i", input_path, "-vn", "-acodec", "pcm_s16le",
+                "-ar", "16000", "-ac", "1", audio_path], check=True, capture_output=True)
+            load_whisper()
+            result = whisper_model.transcribe(audio_path, fp16=False)
+            source_text = result.get("text", "").strip()
+            detected = result.get("language", "en")
+            source_nllb = WHISPER_TO_NLLB.get(detected, "eng_Latn")
             translated_text = _do_translate(source_text, source_nllb, target_lang)
+
+            voice = get_voice(target_lang)
+            dubbed_audio = f"data/audio/{job_id}_dubbed.mp3"
+            import asyncio
+            asyncio.run(edge_tts.Communicate(translated_text, voice).save(dubbed_audio))
+
+            subprocess.run(["ffmpeg", "-y", "-i", input_path, "-i", dubbed_audio,
+                "-c:v", "copy", "-map", "0:v:0", "-map", "1:a:0", "-shortest", output_path],
+                check=True, capture_output=True)
+
+            db_record = TranslationRecord(
+                source_lang=source_nllb, target_lang=target_lang,
+                source_text=source_text, translated_text=translated_text,
+                audio_url=f"/data/dubbed/{job_id}_dubbed.mp4",
+            )
+            db.add(db_record)
+            db.commit()
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Translation failed: {str(e)[:200]}")
+            print(f"Dubbing error: {e}", flush=True)
 
-    dubbed_audio = f"data/audio/{job_id}_dubbed.mp3"
-    try:
-        voice = get_voice(target_lang)
-        communicate = edge_tts.Communicate(translated_text, voice)
-        await communicate.save(dubbed_audio)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"TTS failed: {str(e)[:200]}")
+    threading.Thread(target=process, daemon=True).start()
+    return {"job_id": job_id, "source_lang": "auto", "target_lang": target_lang,
+            "status": "processing", "output_url": f"/data/dubbed/{job_id}_dubbed.mp4"}
 
-    output_video = f"data/dubbed/{job_id}_dubbed.mp4"
-    if not run_ffmpeg_mux(video_path, dubbed_audio, output_video):
-        raise HTTPException(status_code=500, detail="Failed to mux")
 
-    latency = round(time.time() - start_time, 2)
-    return {
-        "job_id": job_id, "source_lang": source_nllb, "target_lang": target_lang,
-        "source_text": source_text, "translated_text": translated_text,
-        "output_url": f"/data/dubbed/{job_id}_dubbed.mp4",
-        "original_url": f"/data/videos/{job_id}{ext}",
-        "latency_seconds": latency,
-        "message": f"Dubbed video ready ({latency}s)"
-    }
-
-# ===== REQUEST MODELS =====
+# ===== AUTH =====
 
 class SignupRequest(BaseModel):
     name: str
     email: str
     password: str
 
+
 class LoginRequest(BaseModel):
     email: str
     password: str
 
-class RefreshRequest(BaseModel):
-    refresh_token: str
-
-class LogoutRequest(BaseModel):
-    refresh_token: str
 
 class UpdateProfileRequest(BaseModel):
+    email: str
     new_name: Optional[str] = None
     new_email: Optional[str] = None
     new_password: Optional[str] = None
 
-class TranslationRequest(BaseModel):
-    text: str
-    source_lang: str = "eng_Latn"
-    target_lang: str = "swh_Latn"
-
-class AdminLoginRequest(BaseModel):
-    username: str
-    password: str
-
-class AssignRoleRequest(BaseModel):
-    user_id: int
-    role: str
-
-class CreateRoleRequest(BaseModel):
-    name: str
-    description: Optional[str] = None
-    permissions: Optional[List[str]] = None
-
-# ===== ROUTES =====
-
-@app.get("/")
-async def root():
-    return {"Hello": "LingoLink AI Backend is running"}
-
-@app.get("/health")
-async def health():
-    return {
-        "status": "healthy",
-        "models_loaded": _models_loaded,
-        "whisper": whisper_model is not None,
-        "nllb": translation_model is not None,
-    }
-
-# ===== AUTH =====
 
 @app.post("/auth/signup/")
 async def signup(request: SignupRequest, db: Session = Depends(get_db)):
-    if not request.name.strip() or not request.email.strip() or not request.password:
-        raise HTTPException(status_code=400, detail="All fields required")
-    if len(request.password) < 6:
-        raise HTTPException(status_code=400, detail="Password must be at least 6 chars")
-    email_lower = request.email.lower().strip()
-    if db.query(User).filter(User.email == email_lower).first():
+    if not request.email.strip() or not request.password:
+        raise HTTPException(status_code=400, detail="Email and password required")
+    existing = db.query(User).filter(User.email == request.email.lower().strip()).first()
+    if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
+    user = User(
+        name=request.name.strip() or request.email.split("@")[0],
+        email=request.email.lower().strip(),
+        password_hash=hash_password(request.password),
+        role="user",
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
 
-    user = User(name=request.name.strip(), email=email_lower,
-                password=hash_password(request.password), role="user")
-    db.add(user); db.commit(); db.refresh(user)
+    access = create_access_token(user.id)
+    refresh = create_refresh_token(user.id)
+    return {"success": True, "access_token": access, "refresh_token": refresh,
+            "token_type": "bearer", "expires_in": 1800,
+            "user": {"id": user.id, "name": user.name, "email": user.email, "role": user.role},
+            "message": "Account created successfully"}
 
-    access_token = create_access_token(user.id, user.email, user.role)
-    refresh_token = create_refresh_token(user.id, db)
-
-    return {
-        "success": True,
-        "access_token": access_token, "refresh_token": refresh_token,
-        "token_type": "bearer", "expires_in": 30 * 60,
-        "user": {"id": user.id, "name": user.name, "email": user.email, "role": user.role},
-        "message": "Account created successfully"
-    }
 
 @app.post("/auth/login/")
 async def login(request: LoginRequest, db: Session = Depends(get_db)):
     if not request.email.strip() or not request.password:
         raise HTTPException(status_code=400, detail="Email and password required")
     user = db.query(User).filter(User.email == request.email.lower().strip()).first()
-    if not user or not verify_password(request.password, user.password):
+    if not user or not verify_password(request.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")
-    if not user.is_active:
-        raise HTTPException(status_code=403, detail="Account disabled")
 
-    access_token = create_access_token(user.id, user.email, user.role)
-    refresh_token = create_refresh_token(user.id, db)
-    return {
-        "success": True,
-        "access_token": access_token, "refresh_token": refresh_token,
-        "token_type": "bearer", "expires_in": 30 * 60,
-        "user": {"id": user.id, "name": user.name, "email": user.email, "role": user.role},
-        "message": "Login successful"
-    }
+    access = create_access_token(user.id)
+    refresh = create_refresh_token(user.id)
+    return {"success": True, "access_token": access, "refresh_token": refresh,
+            "token_type": "bearer", "expires_in": 1800,
+            "user": {"id": user.id, "name": user.name, "email": user.email, "role": user.role}}
+
 
 @app.post("/auth/refresh/")
-async def refresh(request: RefreshRequest, db: Session = Depends(get_db)):
-    rt = verify_refresh_token(request.refresh_token, db)
-    if not rt:
-        raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
-    user = db.query(User).filter(User.id == rt.user_id).first()
-    if not user or not user.is_active:
-        raise HTTPException(status_code=401, detail="User not found or inactive")
-    rt.revoked = True
-    db.commit()
-    new_access = create_access_token(user.id, user.email, user.role)
-    new_refresh = create_refresh_token(user.id, db)
-    return {"success": True, "access_token": new_access, "refresh_token": new_refresh,
-            "token_type": "bearer", "expires_in": 30 * 60}
+async def refresh_token(refresh_token_str: str, db: Session = Depends(get_db)):
+    user = verify_refresh_token(db, refresh_token_str)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+    new_access = create_access_token(user.id)
+    return {"access_token": new_access, "token_type": "bearer", "expires_in": 1800}
+
 
 @app.post("/auth/logout/")
-async def logout(request: LogoutRequest, db: Session = Depends(get_db)):
-    revoke_refresh_token(request.refresh_token, db)
+async def logout(refresh_token_str: str, db: Session = Depends(get_db)):
+    revoke_refresh_token(db, refresh_token_str)
     return {"success": True, "message": "Logged out"}
+
 
 @app.get("/auth/me/")
 async def me(current_user: User = Depends(get_current_user)):
     return {"id": current_user.id, "name": current_user.name,
             "email": current_user.email, "role": current_user.role}
+
 
 @app.post("/auth/update/")
 async def update_profile(
@@ -524,32 +460,28 @@ async def update_profile(
     if request.new_name:
         current_user.name = request.new_name.strip()
     if request.new_email and request.new_email.lower().strip() != current_user.email:
-        if db.query(User).filter(User.email == request.new_email.lower().strip()).first():
+        existing = db.query(User).filter(User.email == request.new_email.lower().strip()).first()
+        if existing:
             raise HTTPException(status_code=400, detail="Email already in use")
         current_user.email = request.new_email.lower().strip()
     if request.new_password:
-        if len(request.new_password) < 6:
-            raise HTTPException(status_code=400, detail="Password must be at least 6 chars")
-        current_user.password = hash_password(request.new_password)
-        revoke_all_user_tokens(current_user.id, db)
-    db.commit(); db.refresh(current_user)
-    return {"success": True,
-            "user": {"id": current_user.id, "name": current_user.name,
-                     "email": current_user.email, "role": current_user.role},
-            "message": "Profile updated"}
+        current_user.password_hash = hash_password(request.new_password)
+    db.commit()
+    db.refresh(current_user)
+    return {"success": True, "user": {"id": current_user.id, "name": current_user.name,
+            "email": current_user.email, "role": current_user.role}}
 
-# ===== RBAC ENDPOINTS =====
+
+# ===== RBAC =====
 
 @app.get("/rbac/me/permissions/")
 async def my_permissions(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return {
-        "user_id": current_user.id,
-        "role": current_user.role,
-        "permissions": get_user_permissions(current_user, db),
-    }
+    perms = get_user_permissions(db, current_user)
+    return {"user_id": current_user.id, "role": current_user.role, "permissions": perms}
+
 
 @app.get("/rbac/roles/")
 async def list_roles(
@@ -557,11 +489,8 @@ async def list_roles(
     db: Session = Depends(get_db),
 ):
     roles = db.query(Role).all()
-    return [
-        {"id": r.id, "name": r.name, "description": r.description,
-         "permissions": [p.name for p in r.permissions]}
-        for r in roles
-    ]
+    return [{"id": r.id, "name": r.name, "description": r.description} for r in roles]
+
 
 @app.get("/rbac/permissions/")
 async def list_permissions(
@@ -570,6 +499,12 @@ async def list_permissions(
 ):
     perms = db.query(Permission).all()
     return [{"id": p.id, "name": p.name, "description": p.description} for p in perms]
+
+
+class AssignRoleRequest(BaseModel):
+    user_id: int
+    role: str
+
 
 @app.post("/rbac/assign-role/")
 async def assign_role(
@@ -581,12 +516,15 @@ async def assign_role(
     target = db.query(User).filter(User.id == request.user_id).first()
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
-    role = db.query(Role).filter(Role.name == request.role).first()
-    if not role:
-        raise HTTPException(status_code=404, detail=f"Role '{request.role}' not found")
-    target.role = role.name
+    target.role = request.role
     db.commit()
-    return {"success": True, "user_id": target.id, "new_role": role.name}
+    return {"success": True, "user_id": target.id, "new_role": target.role}
+
+
+class CreateRoleRequest(BaseModel):
+    name: str
+    description: Optional[str] = None
+
 
 @app.post("/rbac/create-role/")
 async def create_role(
@@ -597,18 +535,14 @@ async def create_role(
 ):
     if db.query(Role).filter(Role.name == request.name).first():
         raise HTTPException(status_code=400, detail="Role already exists")
-    role = Role(name=request.name, description=request.description)
-    db.add(role); db.commit(); db.refresh(role)
-    if request.permissions:
-        for perm_name in request.permissions:
-            perm = db.query(Permission).filter(Permission.name == perm_name).first()
-            if perm:
-                role.permissions.append(perm)
-        db.commit()
-    return {"success": True, "role": role.name,
-            "permissions": [p.name for p in role.permissions]}
+    role = Role(name=request.name, description=request.description or "")
+    db.add(role)
+    db.commit()
+    db.refresh(role)
+    return {"success": True, "role_id": role.id, "name": role.name}
 
-# ===== ADMIN (Basic auth, unchanged) =====
+
+# ===== ADMIN =====
 
 @app.post("/admin/login/")
 async def admin_login(request: AdminLoginRequest):
@@ -616,78 +550,76 @@ async def admin_login(request: AdminLoginRequest):
         return {"success": True, "message": "Login successful"}
     raise HTTPException(status_code=401, detail="Invalid credentials")
 
+
 @app.get("/admin/stats/")
-async def admin_stats(admin: bool = Depends(verify_admin_basic), db: Session = Depends(get_db)):
-    total_translations = db.query(TranslationRecord).count()
+async def admin_stats(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    _: None = Depends(require_permission("admin")),
+):
     total_users = db.query(User).count()
+    total_translations = db.query(TranslationRecord).count()
     lang_pairs = db.query(TranslationRecord.source_lang, TranslationRecord.target_lang,
         func.count(TranslationRecord.id).label('count')).group_by(
         TranslationRecord.source_lang, TranslationRecord.target_lang).order_by(
         func.count(TranslationRecord.id).desc()).limit(10).all()
     last_24h = db.query(TranslationRecord).filter(TranslationRecord.created_at >= datetime.utcnow() - timedelta(hours=24)).count()
-    last_7d = db.query(TranslationRecord).filter(TranslationRecord.created_at >= datetime.utcnow() - timedelta(days=7)).count()
-    daily_counts = []
-    for i in range(6, -1, -1):
-        ds = (datetime.utcnow() - timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
-        de = ds + timedelta(days=1)
-        c = db.query(TranslationRecord).filter(TranslationRecord.created_at >= ds, TranslationRecord.created_at < de).count()
-        daily_counts.append({"date": ds.strftime("%Y-%m-%d"), "count": c})
-    return {"total_translations": total_translations, "total_users": total_users,
-        "last_24h": last_24h, "last_7d": last_7d, "daily_counts": daily_counts,
-        "top_language_pairs": [{"source": p[0], "target": p[1], "count": p[2]} for p in lang_pairs]}
+    return {"total_users": total_users, "total_translations": total_translations,
+            "translations_24h": last_24h,
+            "top_language_pairs": [{"from": r[0], "to": r[1], "count": r[2]} for r in lang_pairs]}
+
 
 @app.get("/admin/users/")
-async def admin_users(admin: bool = Depends(verify_admin_basic), db: Session = Depends(get_db)):
-    users = db.query(User).order_by(User.created_at.desc()).all()
-    return {"total": len(users), "users": [
-        {"id": u.id, "name": u.name, "email": u.email, "role": u.role,
-         "created_at": u.created_at.isoformat() if u.created_at else None} for u in users]}
+async def admin_users(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    _: None = Depends(require_permission("admin")),
+):
+    users = db.query(User).order_by(User.id.desc()).limit(100).all()
+    return [{"id": u.id, "name": u.name, "email": u.email, "role": u.role,
+             "created_at": u.created_at.isoformat() if u.created_at else None} for u in users]
 
-@app.get("/admin/translations/")
-async def admin_translations(admin: bool = Depends(verify_admin_basic), db: Session = Depends(get_db), limit: int = 50, offset: int = 0):
-    records = db.query(TranslationRecord).order_by(TranslationRecord.created_at.desc()).offset(offset).limit(limit).all()
-    return {"total": db.query(TranslationRecord).count(), "records": [
-        {"id": r.id, "source_lang": r.source_lang, "target_lang": r.target_lang,
-         "source_text": r.source_text, "translated_text": r.translated_text,
-         "created_at": r.created_at.isoformat() if r.created_at else None} for r in records]}
 
-@app.delete("/admin/translations/{record_id}")
-async def admin_delete_translation(record_id: int, admin: bool = Depends(verify_admin_basic), db: Session = Depends(get_db)):
-    r = db.query(TranslationRecord).filter(TranslationRecord.id == record_id).first()
-    if not r:
-        raise HTTPException(status_code=404, detail="Record not found")
-    db.delete(r); db.commit()
-    return {"message": "Record deleted"}
+@app.get("/admin/records/")
+async def admin_records(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    _: None = Depends(require_permission("admin")),
+):
+    records = db.query(TranslationRecord).order_by(TranslationRecord.id.desc()).limit(100).all()
+    return [{"id": r.id, "source_lang": r.source_lang, "target_lang": r.target_lang,
+             "source_text": r.source_text, "translated_text": r.translated_text,
+             "created_at": r.created_at.isoformat() if r.created_at else None} for r in records]
 
-@app.delete("/admin/translations/")
-async def admin_clear_translations(admin: bool = Depends(verify_admin_basic), db: Session = Depends(get_db)):
-    c = db.query(TranslationRecord).delete(); db.commit()
-    return {"message": f"Deleted {c} records"}
 
-# ===== TRANSLATION (requires translate permission) =====
+# ===== TEXT TRANSLATE =====
 
 @app.post("/translate_text/")
 async def translate_text(
     request: TranslationRequest,
     db: Session = Depends(get_db),
 ):
+    load_models()
     start = time.time()
     translated = _do_translate(request.text, request.source_lang, request.target_lang)
     tts_filename = f"tts_{int(time.time())}.mp3"
     tts_url = None
     try:
         voice = get_voice(request.target_lang)
-        communicate = edge_tts.Communicate(translated, voice)
-        await communicate.save(f"data/audio/{tts_filename}")
+        await edge_tts.Communicate(translated, voice).save(f"data/audio/{tts_filename}")
         tts_url = f"/data/audio/{tts_filename}"
     except Exception as e:
         print(f"TTS error: {e}", flush=True)
+
     rec = TranslationRecord(source_lang=request.source_lang, target_lang=request.target_lang,
                             source_text=request.text, translated_text=translated)
     db.add(rec); db.commit(); db.refresh(rec)
     return {"id": rec.id, "source_text": request.text, "translated_text": translated,
-            "tts_file_path": tts_url, "latency_seconds": round(time.time() - start, 2),
-            "message": "Text translation successful"}
+            "source_lang": request.source_lang, "target_lang": request.target_lang,
+            "audio_url": tts_url, "elapsed": round(time.time() - start, 2)}
+
+
+# ===== AUDIO TRANSLATE =====
 
 @app.post("/translate_audio/")
 async def translate_audio(
@@ -698,8 +630,8 @@ async def translate_audio(
     load_models(); load_whisper()
     start = time.time()
     fl = f"data/audio/{file.filename}"
-    with open(fl, "wb") as buf:
-        shutil.copyfileobj(file.file, buf)
+    with open(fl, "wb") as f:
+        shutil.copyfileobj(file.file, f)
     stt = whisper_model.transcribe(fl, fp16=False)
     src_text = stt["text"].strip()
     translated = _do_translate(src_text, source_lang, target_lang)
@@ -707,17 +639,20 @@ async def translate_audio(
     tts_url = None
     try:
         voice = get_voice(target_lang)
-        communicate = edge_tts.Communicate(translated, voice)
-        await communicate.save(f"data/audio/{tts_filename}")
+        await edge_tts.Communicate(translated, voice).save(f"data/audio/{tts_filename}")
         tts_url = f"/data/audio/{tts_filename}"
     except Exception as e:
         print(f"TTS error: {e}", flush=True)
+
     rec = TranslationRecord(source_lang=source_lang, target_lang=target_lang,
                             source_text=src_text, translated_text=translated)
     db.add(rec); db.commit(); db.refresh(rec)
     return {"id": rec.id, "source_text": src_text, "translated_text": translated,
-            "tts_file_path": tts_url, "latency_seconds": round(time.time() - start, 2),
-            "message": "Audio translation successful"}
+            "source_lang": source_lang, "target_lang": target_lang,
+            "audio_url": tts_url, "elapsed": round(time.time() - start, 2)}
+
+
+# ===== HISTORY =====
 
 @app.get("/history/")
 async def get_history(
@@ -731,6 +666,7 @@ async def get_history(
              "source_text": r.source_text, "translated_text": r.translated_text,
              "created_at": r.created_at.isoformat() if r.created_at else None} for r in records]
 
+
 @app.delete("/history/{record_id}")
 async def delete_history(
     record_id: int,
@@ -740,7 +676,7 @@ async def delete_history(
 ):
     r = db.query(TranslationRecord).filter(TranslationRecord.id == record_id).first()
     if not r:
-        raise HTTPException(status_code=404, detail="Record not found")
-    db.delete(r); db.commit()
-    return {"message": "Record deleted"}
-
+        raise HTTPException(status_code=404, detail="Not found")
+    db.delete(r)
+    db.commit()
+    return {"success": True}
