@@ -74,25 +74,14 @@ NLLB_TO_GOOGLE = {
     "afr_Latn": "af",
 }
 
-# 2-letter codes → MyMemory region codes
-MM_MAP = {
-    "en": "en-GB", "sw": "sw-KE", "yo": "yo-NG", "ha": "ha-NE",
-    "ig": "ig-NG", "zu": "zu-ZA", "am": "am-ET", "so": "so-SO",
-    "ln": "ln-LIN", "fr": "fr-FR", "de": "de-DE", "es": "es-ES",
-    "it": "it-IT", "pt": "pt-PT", "ar": "ar-SA", "zh-CN": "zh-CN",
-    "ja": "ja-JP", "ko": "ko-KR", "hi": "hi-IN", "ru": "ru-RU",
-    "nl": "nl-NL", "tr": "tr-TR", "vi": "vi-VN", "ur": "ur-PK",
-    "af": "af-ZA",
-}
-
 
 def load_models():
-    """No-op — translation handled by MyMemory API."""
+    """No-op — translation handled by LibreTranslate API."""
     return
 
 
 def _do_translate(text, source_lang, target_lang):
-    """Translate via MyMemory REST API directly (no deep-translator library)."""
+    """Translate via LibreTranslate public instance (free, no API key)."""
     import requests
 
     if source_lang == target_lang:
@@ -101,22 +90,36 @@ def _do_translate(text, source_lang, target_lang):
     src = NLLB_TO_GOOGLE.get(source_lang, "en")
     tgt = NLLB_TO_GOOGLE.get(target_lang, "en")
 
-    src_mm = MM_MAP.get(src, "en-GB")
-    tgt_mm = MM_MAP.get(tgt, "sw-KE")
+    # LibreTranslate uses 2-letter codes directly
+    LT_MAP = {
+        "en": "en", "sw": "sw", "yo": "yo", "ha": "ha", "ig": "ig",
+        "zu": "zu", "am": "am", "so": "so", "ln": "ln", "fr": "fr",
+        "de": "de", "es": "es", "it": "it", "pt": "pt", "ar": "ar",
+        "zh-CN": "zh", "ja": "ja", "ko": "ko", "hi": "hi", "ru": "ru",
+        "nl": "nl", "tr": "tr", "vi": "vi", "ur": "ur", "af": "af",
+    }
 
-    url = "https://api.mymemory.translated.net/get"
-    params = {"q": text, "langpair": f"{src_mm}|{tgt_mm}"}
+    src_lt = LT_MAP.get(src, "en")
+    tgt_lt = LT_MAP.get(tgt, "sw")
 
-    print(f"[TRANSLATE] src={src_mm}, tgt={tgt_mm}, text={text[:50]}", flush=True)
+    url = "https://libretranslate.de/translate"
+    payload = {
+        "q": text,
+        "source": src_lt,
+        "target": tgt_lt,
+        "format": "text",
+    }
+
+    print(f"[TRANSLATE] LibreTranslate src={src_lt}, tgt={tgt_lt}, text={text[:50]}", flush=True)
 
     try:
-        resp = requests.get(url, params=params, timeout=20)
+        resp = requests.post(url, json=payload, timeout=20)
         if resp.status_code != 200:
             print(f"[TRANSLATE] HTTP {resp.status_code}: {resp.text[:200]}", flush=True)
             return text
 
         data = resp.json()
-        translated = data.get("responseData", {}).get("translatedText", "")
+        translated = data.get("translatedText", "")
         print(f"[TRANSLATE] result: {translated[:80]}", flush=True)
 
         if translated and translated.lower() != text.lower():
