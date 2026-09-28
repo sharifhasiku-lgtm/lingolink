@@ -63,7 +63,7 @@ ADMIN_PASSWORD = "lingolink256"
 whisper_model = None
 _models_loaded = False
 
-# NLLB codes → Google Translate language codes
+# NLLB codes → language codes
 NLLB_TO_GOOGLE = {
     "eng_Latn": "en", "swh_Latn": "sw", "yor_Latn": "yo", "hau_Latn": "ha",
     "ibo_Latn": "ig", "zul_Latn": "zu", "amh_Ethi": "am", "som_Latn": "so",
@@ -74,15 +74,26 @@ NLLB_TO_GOOGLE = {
     "afr_Latn": "af",
 }
 
+# MyMemory uses region-specific codes
+MM_MAP = {
+    "en": "en-US", "sw": "sw-KE", "yo": "yo-NG", "ha": "ha-NG",
+    "ig": "ig-NG", "zu": "zu-ZA", "am": "am-ET", "so": "so-SO",
+    "fr": "fr-FR", "de": "de-DE", "es": "es-ES", "it": "it-IT",
+    "pt": "pt-PT", "ar": "ar-SA", "zh-CN": "zh-CN", "ja": "ja-JP",
+    "ko": "ko-KR", "hi": "hi-IN", "ru": "ru-RU", "nl": "nl-NL",
+    "tr": "tr-TR", "vi": "vi-VN", "ur": "ur-PK", "af": "af-ZA",
+}
+
 
 def load_models():
-    """No-op — translation handled by deep-translator API."""
+    """No-op — translation handled by MyMemory API."""
     return
 
 
 def _do_translate(text, source_lang, target_lang):
-    """Translate via deep-translator (free, no API key)."""
-    from deep_translator import GoogleTranslator
+    """Translate via MyMemory (free, no API key, no Google rate limit)."""
+    from deep_translator import MyMemoryTranslator
+    import time as _time
 
     if source_lang == target_lang:
         return text
@@ -90,13 +101,22 @@ def _do_translate(text, source_lang, target_lang):
     src = NLLB_TO_GOOGLE.get(source_lang, "en")
     tgt = NLLB_TO_GOOGLE.get(target_lang, "en")
 
-    try:
-        translator = GoogleTranslator(source=src, target=tgt)
-        result = translator.translate(text)
-        return result if result else text
-    except Exception as e:
-        print(f"Translation error: {e}", flush=True)
-        return text
+    src_mm = MM_MAP.get(src, src)
+    tgt_mm = MM_MAP.get(tgt, tgt)
+
+    # Retry up to 3 times with backoff
+    for attempt in range(3):
+        try:
+            translator = MyMemoryTranslator(source=src_mm, target=tgt_mm)
+            result = translator.translate(text)
+            if result and result != text:
+                return result
+        except Exception as e:
+            print(f"Translation attempt {attempt+1} failed: {e}", flush=True)
+            if attempt < 2:
+                _time.sleep(2 * (attempt + 1))
+
+    return text
 
 
 def load_whisper():
@@ -311,10 +331,6 @@ class TranslationRequest(BaseModel):
 class AdminLoginRequest(BaseModel):
     username: str
     password: str
-
-
-class DubbingStartResponse(BaseModel):
-    job_id: str
 
 
 # ===== DUBBING =====
