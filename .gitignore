@@ -45,3 +45,12 @@ hf_cache/
 
 PROGRESS.md
 .vercel
+
+# Abandoned Node translation service (using MyMemory instead)
+translation-service/
+
+# Flutter build outputs
+lingolink_mobile/android/build/
+
+# Auto-generated plugin registrants
+lingolink_mobile/macos/Flutter/GeneratedPluginRegistrant.swift
