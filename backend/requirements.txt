@@ -17,4 +17,4 @@ edge-tts
 openai-whisper
 aiofiles
 requests
-deep-translator
+deep-translator==1.11.4

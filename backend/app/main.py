@@ -63,7 +63,7 @@ ADMIN_PASSWORD = "lingolink256"
 whisper_model = None
 _models_loaded = False
 
-# NLLB codes → language codes
+# NLLB codes → 2-letter language codes
 NLLB_TO_GOOGLE = {
     "eng_Latn": "en", "swh_Latn": "sw", "yor_Latn": "yo", "hau_Latn": "ha",
     "ibo_Latn": "ig", "zul_Latn": "zu", "amh_Ethi": "am", "som_Latn": "so",
@@ -74,14 +74,15 @@ NLLB_TO_GOOGLE = {
     "afr_Latn": "af",
 }
 
-# MyMemory uses region-specific codes
+# 2-letter codes → MyMemory region codes
 MM_MAP = {
-    "en": "en-US", "sw": "sw-KE", "yo": "yo-NG", "ha": "ha-NG",
+    "en": "en-GB", "sw": "sw-KE", "yo": "yo-NG", "ha": "ha-NE",
     "ig": "ig-NG", "zu": "zu-ZA", "am": "am-ET", "so": "so-SO",
-    "fr": "fr-FR", "de": "de-DE", "es": "es-ES", "it": "it-IT",
-    "pt": "pt-PT", "ar": "ar-SA", "zh-CN": "zh-CN", "ja": "ja-JP",
-    "ko": "ko-KR", "hi": "hi-IN", "ru": "ru-RU", "nl": "nl-NL",
-    "tr": "tr-TR", "vi": "vi-VN", "ur": "ur-PK", "af": "af-ZA",
+    "ln": "ln-LIN", "fr": "fr-FR", "de": "de-DE", "es": "es-ES",
+    "it": "it-IT", "pt": "pt-PT", "ar": "ar-SA", "zh-CN": "zh-CN",
+    "ja": "ja-JP", "ko": "ko-KR", "hi": "hi-IN", "ru": "ru-RU",
+    "nl": "nl-NL", "tr": "tr-TR", "vi": "vi-VN", "ur": "ur-PK",
+    "af": "af-ZA",
 }
 
 
@@ -91,7 +92,7 @@ def load_models():
 
 
 def _do_translate(text, source_lang, target_lang):
-    """Translate via MyMemory (free, no API key, no Google rate limit)."""
+    """Translate via MyMemory (free, no API key)."""
     from deep_translator import MyMemoryTranslator
     import time as _time
 
@@ -101,18 +102,20 @@ def _do_translate(text, source_lang, target_lang):
     src = NLLB_TO_GOOGLE.get(source_lang, "en")
     tgt = NLLB_TO_GOOGLE.get(target_lang, "en")
 
-    src_mm = MM_MAP.get(src, src)
-    tgt_mm = MM_MAP.get(tgt, tgt)
+    src_mm = MM_MAP.get(src, "en-GB")
+    tgt_mm = MM_MAP.get(tgt, "sw-KE")
 
-    # Retry up to 3 times with backoff
+    print(f"[TRANSLATE] src={src}, src_mm={src_mm}, tgt={tgt}, tgt_mm={tgt_mm}", flush=True)
+
     for attempt in range(3):
         try:
             translator = MyMemoryTranslator(source=src_mm, target=tgt_mm)
             result = translator.translate(text)
-            if result and result != text:
+            print(f"[TRANSLATE] attempt {attempt+1} result: {result[:80] if result else None}", flush=True)
+            if result and result.lower() != text.lower():
                 return result
         except Exception as e:
-            print(f"Translation attempt {attempt+1} failed: {e}", flush=True)
+            print(f"[TRANSLATE] attempt {attempt+1} failed: {e}", flush=True)
             if attempt < 2:
                 _time.sleep(2 * (attempt + 1))
 
