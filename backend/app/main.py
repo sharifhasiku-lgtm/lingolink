@@ -63,7 +63,6 @@ ADMIN_PASSWORD = "lingolink256"
 whisper_model = None
 _models_loaded = False
 
-# NLLB codes → 2-letter language codes
 NLLB_TO_GOOGLE = {
     "eng_Latn": "en", "swh_Latn": "sw", "yor_Latn": "yo", "hau_Latn": "ha",
     "ibo_Latn": "ig", "zul_Latn": "zu", "amh_Ethi": "am", "som_Latn": "so",
@@ -74,14 +73,25 @@ NLLB_TO_GOOGLE = {
     "afr_Latn": "af",
 }
 
+# 2-letter codes → MyMemory region codes
+MM_MAP = {
+    "en": "en-GB", "sw": "sw-KE", "yo": "yo-NG", "ha": "ha-NE",
+    "ig": "ig-NG", "zu": "zu-ZA", "am": "am-ET", "so": "so-SO",
+    "ln": "ln-LIN", "fr": "fr-FR", "de": "de-DE", "es": "es-ES",
+    "it": "it-IT", "pt": "pt-PT", "ar": "ar-SA", "zh-CN": "zh-CN",
+    "ja": "ja-JP", "ko": "ko-KR", "hi": "hi-IN", "ru": "ru-RU",
+    "nl": "nl-NL", "tr": "tr-TR", "vi": "vi-VN", "ur": "ur-PK",
+    "af": "af-ZA",
+}
+
 
 def load_models():
-    """No-op — translation handled by LibreTranslate API."""
+    """No-op — translation handled by MyMemory API."""
     return
 
 
 def _do_translate(text, source_lang, target_lang):
-    """Translate via LibreTranslate public instance (free, no API key)."""
+    """Translate via MyMemory REST API with email for higher quota."""
     import requests
 
     if source_lang == target_lang:
@@ -90,44 +100,68 @@ def _do_translate(text, source_lang, target_lang):
     src = NLLB_TO_GOOGLE.get(source_lang, "en")
     tgt = NLLB_TO_GOOGLE.get(target_lang, "en")
 
-    # LibreTranslate uses 2-letter codes directly
-    LT_MAP = {
-        "en": "en", "sw": "sw", "yo": "yo", "ha": "ha", "ig": "ig",
-        "zu": "zu", "am": "am", "so": "so", "ln": "ln", "fr": "fr",
-        "de": "de", "es": "es", "it": "it", "pt": "pt", "ar": "ar",
-        "zh-CN": "zh", "ja": "ja", "ko": "ko", "hi": "hi", "ru": "ru",
-        "nl": "nl", "tr": "tr", "vi": "vi", "ur": "ur", "af": "af",
-    }
+    src_mm = MM_MAP.get(src, "en-GB")
+    tgt_mm = MM_MAP.get(tgt, "sw-KE")
 
-    src_lt = LT_MAP.get(src, "en")
-    tgt_lt = LT_MAP.get(tgt, "sw")
-
-    url = "https://libretranslate.de/translate"
-    payload = {
+    url = "https://api.mymemory.translated.net/get"
+    params = {
         "q": text,
-        "source": src_lt,
-        "target": tgt_lt,
-        "format": "text",
+        "langpair": f"{src_mm}|{tgt_mm}",
+        "de": "lingolink@example.com",
     }
 
-    print(f"[TRANSLATE] LibreTranslate src={src_lt}, tgt={tgt_lt}, text={text[:50]}", flush=True)
+    print(f"[TRANSLATE] MyMemory src={src_mm}, tgt={tgt_mm}, text={text[:50]}", flush=True)
 
     try:
-        resp = requests.post(url, json=payload, timeout=20)
+        resp = requests.get(url, params=params, timeout=20)
         if resp.status_code != 200:
             print(f"[TRANSLATE] HTTP {resp.status_code}: {resp.text[:200]}", flush=True)
             return text
 
         data = resp.json()
-        translated = data.get("translatedText", "")
-        print(f"[TRANSLATE] result: {translated[:80]}", flush=True)
+        translated = data.get("responseData", {}).get("translatedText", "")
+        print(f"[TRANSLATE] result: {translated[:120]}", flush=True)
+
+        # Detect the rate-limit warning message
+        if translated and (
+            "MYMEMORY WARNING" in translated.upper()
+            or "QUOTA" in translated.upper()
+            or "USED ALL AVAILABLE" in translated.upper()
+        ):
+            print("[TRANSLATE] MyMemory quota exhausted — trying fallback", flush=True)
+            return _fallback_translate(text, src, tgt)
 
         if translated and translated.lower() != text.lower():
             return translated
-        return text
+
+        # If MyMemory returned same text, try the fallback
+        return _fallback_translate(text, src, tgt)
     except Exception as e:
         print(f"[TRANSLATE] error: {e}", flush=True)
-        return text
+        return _fallback_translate(text, src, tgt)
+
+
+def _fallback_translate(text, src, tgt):
+    """Fallback: Lingva Translate (free Google Translate frontend)."""
+    import requests
+    from urllib.parse import quote
+
+    try:
+        url = f"https://lingva.ml/api/v1/{src}/{tgt}/{quote(text)}"
+        print(f"[TRANSLATE-FALLBACK] Lingva: {url[:100]}", flush=True)
+        resp = requests.get(url, timeout=20)
+        if resp.status_code == 200:
+            data = resp.json()
+            translated = data.get("translation", "")
+            print(f"[TRANSLATE-FALLBACK] result: {translated[:120]}", flush=True)
+            if translated and translated.lower() != text.lower():
+                return translated
+        else:
+            print(f"[TRANSLATE-FALLBACK] HTTP {resp.status_code}", flush=True)
+    except Exception as e:
+        print(f"[TRANSLATE-FALLBACK] error: {e}", flush=True)
+
+    return text
 
 
 def load_whisper():
@@ -205,8 +239,6 @@ def verify_admin_basic(authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=401, detail="Invalid admin credentials")
     return True
 
-
-# ===== WEBSOCKET =====
 
 WHISPER_TO_NLLB = {
     "en": "eng_Latn", "sw": "swh_Latn", "fr": "fra_Latn", "de": "deu_Latn",
@@ -331,8 +363,6 @@ async def agent_websocket(ws: WebSocket):
         print("Agent disconnected", flush=True)
 
 
-# ===== MODELS =====
-
 class TranslationRequest(BaseModel):
     text: str
     source_lang: str = "eng_Latn"
@@ -343,8 +373,6 @@ class AdminLoginRequest(BaseModel):
     username: str
     password: str
 
-
-# ===== DUBBING =====
 
 @app.post("/dubbing/start")
 async def dubbing_start(
@@ -358,7 +386,6 @@ async def dubbing_start(
     input_path = f"data/videos/{job_id}_input.mp4"
     with open(input_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
-
     output_path = f"data/dubbed/{job_id}_dubbed.mp4"
     audio_path = f"data/audio/{job_id}.wav"
 
@@ -372,16 +399,13 @@ async def dubbing_start(
             detected = result.get("language", "en")
             source_nllb = WHISPER_TO_NLLB.get(detected, "eng_Latn")
             translated_text = _do_translate(source_text, source_nllb, target_lang)
-
             voice = get_voice(target_lang)
             dubbed_audio = f"data/audio/{job_id}_dubbed.mp3"
             import asyncio
             asyncio.run(edge_tts.Communicate(translated_text, voice).save(dubbed_audio))
-
             subprocess.run(["ffmpeg", "-y", "-i", input_path, "-i", dubbed_audio,
                 "-c:v", "copy", "-map", "0:v:0", "-map", "1:a:0", "-shortest", output_path],
                 check=True, capture_output=True)
-
             db_record = TranslationRecord(
                 source_lang=source_nllb, target_lang=target_lang,
                 source_text=source_text, translated_text=translated_text,
@@ -396,8 +420,6 @@ async def dubbing_start(
     return {"job_id": job_id, "source_lang": "auto", "target_lang": target_lang,
             "status": "processing", "output_url": f"/data/dubbed/{job_id}_dubbed.mp4"}
 
-
-# ===== AUTH =====
 
 class SignupRequest(BaseModel):
     name: str
@@ -433,7 +455,6 @@ async def signup(request: SignupRequest, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
-
     access = create_access_token(user.id)
     refresh = create_refresh_token(user.id)
     return {"success": True, "access_token": access, "refresh_token": refresh,
@@ -449,7 +470,6 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == request.email.lower().strip()).first()
     if not user or not verify_password(request.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")
-
     access = create_access_token(user.id)
     refresh = create_refresh_token(user.id)
     return {"success": True, "access_token": access, "refresh_token": refresh,
@@ -498,8 +518,6 @@ async def update_profile(
     return {"success": True, "user": {"id": current_user.id, "name": current_user.name,
             "email": current_user.email, "role": current_user.role}}
 
-
-# ===== RBAC =====
 
 @app.get("/rbac/me/permissions/")
 async def my_permissions(
@@ -569,8 +587,6 @@ async def create_role(
     return {"success": True, "role_id": role.id, "name": role.name}
 
 
-# ===== ADMIN =====
-
 @app.post("/admin/login/")
 async def admin_login(request: AdminLoginRequest):
     if request.username == ADMIN_USERNAME and request.password == ADMIN_PASSWORD:
@@ -619,8 +635,6 @@ async def admin_records(
              "created_at": r.created_at.isoformat() if r.created_at else None} for r in records]
 
 
-# ===== TEXT TRANSLATE =====
-
 @app.post("/translate_text/")
 async def translate_text(
     request: TranslationRequest,
@@ -645,8 +659,6 @@ async def translate_text(
             "source_lang": request.source_lang, "target_lang": request.target_lang,
             "audio_url": tts_url, "elapsed": round(time.time() - start, 2)}
 
-
-# ===== AUDIO TRANSLATE =====
 
 @app.post("/translate_audio/")
 async def translate_audio(
@@ -678,8 +690,6 @@ async def translate_audio(
             "source_lang": source_lang, "target_lang": target_lang,
             "audio_url": tts_url, "elapsed": round(time.time() - start, 2)}
 
-
-# ===== HISTORY =====
 
 @app.get("/history/")
 async def get_history(
