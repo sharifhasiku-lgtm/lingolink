@@ -86,7 +86,6 @@ MM_MAP = {
 }
 
 # ===== SINGLE MALE MULTILINGUAL VOICE =====
-# This one voice is used for ALL languages
 SINGLE_VOICE = "en-US-AndrewMultilingualNeural"
 
 
@@ -508,7 +507,7 @@ async def signup(request: SignupRequest, db: Session = Depends(get_db)):
     user = User(
         name=request.name.strip() or request.email.split("@")[0],
         email=request.email.lower().strip(),
-        password_hash=hash_password(request.password),
+        password=hash_password(request.password),
         role="user",
     )
     db.add(user)
@@ -527,7 +526,7 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
     if not request.email.strip() or not request.password:
         raise HTTPException(status_code=400, detail="Email and password required")
     user = db.query(User).filter(User.email == request.email.lower().strip()).first()
-    if not user or not verify_password(request.password, user.password_hash):
+    if not user or not verify_password(request.password, user.password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     access = create_access_token(user.id)
     refresh = create_refresh_token(user.id)
@@ -571,7 +570,7 @@ async def update_profile(
             raise HTTPException(status_code=400, detail="Email already in use")
         current_user.email = request.new_email.lower().strip()
     if request.new_password:
-        current_user.password_hash = hash_password(request.new_password)
+        current_user.password = hash_password(request.new_password)
     db.commit()
     db.refresh(current_user)
     return {"success": True, "user": {"id": current_user.id, "name": current_user.name,
