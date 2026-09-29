@@ -5,7 +5,7 @@ allprojects {
     }
 }
 
-// Force all subprojects (including plugins like file_picker) to use compileSdk 36
+// Force ALL subprojects (plugins) to compile against API 36
 subprojects {
     afterEvaluate {
         if (project.hasProperty("android")) {

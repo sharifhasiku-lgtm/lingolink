@@ -54,3 +54,9 @@ lingolink_mobile/android/build/
 
 # Auto-generated plugin registrants
 lingolink_mobile/macos/Flutter/GeneratedPluginRegistrant.swift
+# WebView APK build outputs
+webview-apk/.gradle/
+webview-apk/build/
+webview-apk/app/build/
+webview-apk/local.properties
+webview-apk/.idea/
