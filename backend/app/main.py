@@ -63,6 +63,8 @@ ADMIN_PASSWORD = "lingolink256"
 whisper_model = None
 _models_loaded = False
 
+# ===== LANGUAGE MAPS =====
+
 NLLB_TO_GOOGLE = {
     "eng_Latn": "en", "swh_Latn": "sw", "yor_Latn": "yo", "hau_Latn": "ha",
     "ibo_Latn": "ig", "zul_Latn": "zu", "amh_Ethi": "am", "som_Latn": "so",
@@ -73,7 +75,6 @@ NLLB_TO_GOOGLE = {
     "afr_Latn": "af",
 }
 
-# 2-letter codes → MyMemory region codes
 MM_MAP = {
     "en": "en-GB", "sw": "sw-KE", "yo": "yo-NG", "ha": "ha-NE",
     "ig": "ig-NG", "zu": "zu-ZA", "am": "am-ET", "so": "so-SO",
@@ -84,24 +85,26 @@ MM_MAP = {
     "af": "af-ZA",
 }
 
+# ===== SINGLE MALE MULTILINGUAL VOICE =====
+# This one voice is used for ALL languages
+SINGLE_VOICE = "en-US-AndrewMultilingualNeural"
+
 
 def load_models():
-    """No-op — translation handled by MyMemory API."""
+    """No-op — translation handled by external APIs."""
     return
 
 
-def _do_translate(text, source_lang, target_lang):
-    """Translate via MyMemory REST API with email for higher quota."""
+def get_voice(lang_code=None):
+    """Always return the single multilingual male voice."""
+    return SINGLE_VOICE
+
+
+# ===== CORE TRANSLATION HELPERS =====
+
+def _mymemory(text, src_mm, tgt_mm):
+    """Call MyMemory. Returns translated text or None if it fails."""
     import requests
-
-    if source_lang == target_lang:
-        return text
-
-    src = NLLB_TO_GOOGLE.get(source_lang, "en")
-    tgt = NLLB_TO_GOOGLE.get(target_lang, "en")
-
-    src_mm = MM_MAP.get(src, "en-GB")
-    tgt_mm = MM_MAP.get(tgt, "sw-KE")
 
     url = "https://api.mymemory.translated.net/get"
     params = {
@@ -109,60 +112,128 @@ def _do_translate(text, source_lang, target_lang):
         "langpair": f"{src_mm}|{tgt_mm}",
         "de": "lingolink@example.com",
     }
-
-    print(f"[TRANSLATE] MyMemory src={src_mm}, tgt={tgt_mm}, text={text[:50]}", flush=True)
-
     try:
-        resp = requests.get(url, params=params, timeout=20)
+        resp = requests.get(url, params=params, timeout=15)
         if resp.status_code != 200:
-            print(f"[TRANSLATE] HTTP {resp.status_code}: {resp.text[:200]}", flush=True)
-            return text
-
+            return None
         data = resp.json()
         translated = data.get("responseData", {}).get("translatedText", "")
-        print(f"[TRANSLATE] result: {translated[:120]}", flush=True)
 
-        # Detect the rate-limit warning message
-        if translated and (
-            "MYMEMORY WARNING" in translated.upper()
-            or "QUOTA" in translated.upper()
-            or "USED ALL AVAILABLE" in translated.upper()
-        ):
-            print("[TRANSLATE] MyMemory quota exhausted — trying fallback", flush=True)
-            return _fallback_translate(text, src, tgt)
+        if not translated:
+            return None
 
-        if translated and translated.lower() != text.lower():
-            return translated
+        upper = translated.upper()
+        bad_markers = [
+            "MYMEMORY WARNING", "QUOTA", "USED ALL AVAILABLE",
+            "PLEASE SELECT TWO DISTINCT LANGUAGES",
+            "INVALID", "SORRY",
+        ]
+        if any(m in upper for m in bad_markers):
+            return None
 
-        # If MyMemory returned same text, try the fallback
-        return _fallback_translate(text, src, tgt)
+        if translated.strip().lower() == text.strip().lower():
+            return None
+
+        return translated
     except Exception as e:
-        print(f"[TRANSLATE] error: {e}", flush=True)
-        return _fallback_translate(text, src, tgt)
+        print(f"[MYMEMORY] error: {e}", flush=True)
+        return None
 
 
-def _fallback_translate(text, src, tgt):
-    """Fallback: Lingva Translate (free Google Translate frontend)."""
+def _lingva(text, src, tgt):
+    """Call Lingva (Google frontend). Returns translated text or None."""
     import requests
     from urllib.parse import quote
 
+    url = f"https://lingva.ml/api/v1/{src}/{tgt}/{quote(text)}"
     try:
-        url = f"https://lingva.ml/api/v1/{src}/{tgt}/{quote(text)}"
-        print(f"[TRANSLATE-FALLBACK] Lingva: {url[:100]}", flush=True)
-        resp = requests.get(url, timeout=20)
-        if resp.status_code == 200:
-            data = resp.json()
-            translated = data.get("translation", "")
-            print(f"[TRANSLATE-FALLBACK] result: {translated[:120]}", flush=True)
-            if translated and translated.lower() != text.lower():
-                return translated
-        else:
-            print(f"[TRANSLATE-FALLBACK] HTTP {resp.status_code}", flush=True)
+        resp = requests.get(url, timeout=15)
+        if resp.status_code != 200:
+            return None
+        data = resp.json()
+        translated = data.get("translation", "")
+        if not translated:
+            return None
+        if translated.strip().lower() == text.strip().lower():
+            return None
+        return translated
     except Exception as e:
-        print(f"[TRANSLATE-FALLBACK] error: {e}", flush=True)
+        print(f"[LINGVA] error: {e}", flush=True)
+        return None
 
+
+def _try_direct(text, src_2, tgt_2):
+    """Try direct translation. Returns (translated, method) or (None, None)."""
+    src_mm = MM_MAP.get(src_2, src_2)
+    tgt_mm = MM_MAP.get(tgt_2, tgt_2)
+
+    r = _mymemory(text, src_mm, tgt_mm)
+    if r:
+        return r, "mymemory-direct"
+
+    r = _lingva(text, src_2, tgt_2)
+    if r:
+        return r, "lingva-direct"
+
+    return None, None
+
+
+def _try_pivot(text, src_2, tgt_2):
+    """Translate via English pivot."""
+    if src_2 == "en" or tgt_2 == "en":
+        return None, None
+
+    src_mm = MM_MAP.get(src_2, src_2)
+    en_mm = MM_MAP.get("en", "en-GB")
+
+    mid = _mymemory(text, src_mm, en_mm)
+    method_step1 = "mymemory-pivot-1"
+    if not mid:
+        mid = _lingva(text, src_2, "en")
+        method_step1 = "lingva-pivot-1"
+
+    if not mid:
+        return None, None
+
+    tgt_mm = MM_MAP.get(tgt_2, tgt_2)
+    final = _mymemory(mid, en_mm, tgt_mm)
+    method_step2 = "mymemory-pivot-2"
+    if not final:
+        final = _lingva(mid, "en", tgt_2)
+        method_step2 = "lingva-pivot-2"
+
+    if not final:
+        return None, None
+
+    return final, f"{method_step1}+{method_step2}"
+
+
+def _do_translate(text, source_lang, target_lang):
+    """Unified translation with direct + pivot fallback."""
+    if source_lang == target_lang:
+        return text
+
+    src_2 = NLLB_TO_GOOGLE.get(source_lang, "en")
+    tgt_2 = NLLB_TO_GOOGLE.get(target_lang, "en")
+
+    print(f"[TRANSLATE] {src_2} -> {tgt_2}: {text[:60]}", flush=True)
+
+    result, method = _try_direct(text, src_2, tgt_2)
+    if result:
+        print(f"[TRANSLATE] {method}: {result[:80]}", flush=True)
+        return result
+
+    print(f"[TRANSLATE] direct failed, trying pivot...", flush=True)
+    result, method = _try_pivot(text, src_2, tgt_2)
+    if result:
+        print(f"[TRANSLATE] {method}: {result[:80]}", flush=True)
+        return result
+
+    print(f"[TRANSLATE] ALL methods failed, returning original", flush=True)
     return text
 
+
+# ===== WHISPER =====
 
 def load_whisper():
     global whisper_model
@@ -207,26 +278,6 @@ def health():
     return {"status": "ok"}
 
 
-VOICE_MAP = {
-    "eng_Latn": "en-US-AriaNeural", "swh_Latn": "sw-KE-ZuriNeural",
-    "fra_Latn": "fr-FR-DeniseNeural", "deu_Latn": "de-DE-KatjaNeural",
-    "spa_Latn": "es-ES-ElviraNeural", "ita_Latn": "it-IT-ElsaNeural",
-    "por_Latn": "pt-BR-FranciscaNeural", "arb_Arab": "ar-SA-ZariyahNeural",
-    "zho_Hans": "zh-CN-XiaoxiaoNeural", "jpn_Jpan": "ja-JP-NanamiNeural",
-    "kor_Kore": "ko-KR-SunHiNeural", "hin_Deva": "hi-IN-SwaraNeural",
-    "rus_Cyrl": "ru-RU-SvetlanaNeural", "nld_Latn": "nl-NL-ColetteNeural",
-    "tur_Latn": "tr-TR-EmelNeural", "vie_Latn": "vi-VN-HoaiMyNeural",
-    "urd_Arab": "ur-PK-UzmaNeural", "yor_Latn": "yo-NG-EzinneNeural",
-    "hau_Latn": "ha-NG-EzinneNeural", "ibo_Latn": "ig-NG-EzinneNeural",
-    "zul_Latn": "zu-ZA-LeahNeural", "xho_Latn": "xh-ZA-LeahNeural",
-    "afr_Latn": "af-ZA-AdriNeural", "som_Latn": "so-SO-UbaxNeural",
-}
-
-
-def get_voice(lang_code):
-    return VOICE_MAP.get(lang_code, "en-US-AriaNeural")
-
-
 def verify_admin_basic(authorization: Optional[str] = Header(None)):
     if not authorization or not authorization.startswith("Basic "):
         raise HTTPException(status_code=401, detail="Admin authentication required")
@@ -239,6 +290,8 @@ def verify_admin_basic(authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=401, detail="Invalid admin credentials")
     return True
 
+
+# ===== WEBSOCKET =====
 
 WHISPER_TO_NLLB = {
     "en": "eng_Latn", "sw": "swh_Latn", "fr": "fra_Latn", "de": "deu_Latn",
@@ -363,6 +416,8 @@ async def agent_websocket(ws: WebSocket):
         print("Agent disconnected", flush=True)
 
 
+# ===== MODELS =====
+
 class TranslationRequest(BaseModel):
     text: str
     source_lang: str = "eng_Latn"
@@ -373,6 +428,8 @@ class AdminLoginRequest(BaseModel):
     username: str
     password: str
 
+
+# ===== DUBBING =====
 
 @app.post("/dubbing/start")
 async def dubbing_start(
@@ -420,6 +477,8 @@ async def dubbing_start(
     return {"job_id": job_id, "source_lang": "auto", "target_lang": target_lang,
             "status": "processing", "output_url": f"/data/dubbed/{job_id}_dubbed.mp4"}
 
+
+# ===== AUTH =====
 
 class SignupRequest(BaseModel):
     name: str
@@ -519,6 +578,8 @@ async def update_profile(
             "email": current_user.email, "role": current_user.role}}
 
 
+# ===== RBAC =====
+
 @app.get("/rbac/me/permissions/")
 async def my_permissions(
     current_user: User = Depends(get_current_user),
@@ -587,6 +648,8 @@ async def create_role(
     return {"success": True, "role_id": role.id, "name": role.name}
 
 
+# ===== ADMIN =====
+
 @app.post("/admin/login/")
 async def admin_login(request: AdminLoginRequest):
     if request.username == ADMIN_USERNAME and request.password == ADMIN_PASSWORD:
@@ -635,6 +698,8 @@ async def admin_records(
              "created_at": r.created_at.isoformat() if r.created_at else None} for r in records]
 
 
+# ===== TEXT TRANSLATE =====
+
 @app.post("/translate_text/")
 async def translate_text(
     request: TranslationRequest,
@@ -659,6 +724,8 @@ async def translate_text(
             "source_lang": request.source_lang, "target_lang": request.target_lang,
             "audio_url": tts_url, "elapsed": round(time.time() - start, 2)}
 
+
+# ===== AUDIO TRANSLATE =====
 
 @app.post("/translate_audio/")
 async def translate_audio(
@@ -690,6 +757,8 @@ async def translate_audio(
             "source_lang": source_lang, "target_lang": target_lang,
             "audio_url": tts_url, "elapsed": round(time.time() - start, 2)}
 
+
+# ===== HISTORY =====
 
 @app.get("/history/")
 async def get_history(
