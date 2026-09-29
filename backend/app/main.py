@@ -1,4 +1,4 @@
-﻿from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Header, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Header, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
@@ -513,8 +513,8 @@ async def signup(request: SignupRequest, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
-    access = create_access_token(user.id)
-    refresh = create_refresh_token(user.id)
+    access = create_access_token(user.id, user.email, user.role)
+    refresh = create_refresh_token(user.id, db)
     return {"success": True, "access_token": access, "refresh_token": refresh,
             "token_type": "bearer", "expires_in": 1800,
             "user": {"id": user.id, "name": user.name, "email": user.email, "role": user.role},
@@ -528,8 +528,8 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == request.email.lower().strip()).first()
     if not user or not verify_password(request.password, user.password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
-    access = create_access_token(user.id)
-    refresh = create_refresh_token(user.id)
+    access = create_access_token(user.id, user.email, user.role)
+    refresh = create_refresh_token(user.id, db)
     return {"success": True, "access_token": access, "refresh_token": refresh,
             "token_type": "bearer", "expires_in": 1800,
             "user": {"id": user.id, "name": user.name, "email": user.email, "role": user.role}}
@@ -540,7 +540,7 @@ async def refresh_token(refresh_token_str: str, db: Session = Depends(get_db)):
     user = verify_refresh_token(db, refresh_token_str)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
-    new_access = create_access_token(user.id)
+    new_access = create_access_token(user.id, user.email, user.role)
     return {"access_token": new_access, "token_type": "bearer", "expires_in": 1800}
 
 
