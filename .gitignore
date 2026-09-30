@@ -1,1 +1,15 @@
 ﻿
+# Translation service (abandoned)
+translation-service/
+
+# Node modules everywhere
+node_modules/
+
+# WebView APK build outputs
+webview-apk/app/build/
+webview-apk/build/
+webview-apk/.gradle/
+webview-apk/local.properties
+
+# Flutter (removed)
+lingolink_mobile/

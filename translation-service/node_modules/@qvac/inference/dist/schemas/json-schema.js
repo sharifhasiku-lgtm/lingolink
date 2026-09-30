@@ -1,2 +1,0 @@
-// ============== JSON Schema Types ==============
-export {};

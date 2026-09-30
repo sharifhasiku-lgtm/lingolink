@@ -1,9 +1,0 @@
-R_DEF: Internal format may change without notice
-local
-color bg_dark
-color brand_primary
-color brand_secondary
-mipmap ic_launcher
-string app_name
-style Theme.LingoLink
-style Theme.LingoLink.NoActionBar
