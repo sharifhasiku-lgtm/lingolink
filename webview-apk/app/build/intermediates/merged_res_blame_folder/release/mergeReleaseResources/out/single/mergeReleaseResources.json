@@ -1,0 +1,22 @@
+[
+    {
+        "merged": "com.lingolink.app-release-32:/mipmap-xhdpi_ic_launcher.png.flat",
+        "source": "com.lingolink.app-main-33:/mipmap-xhdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.lingolink.app-release-32:/mipmap-xxhdpi_ic_launcher.png.flat",
+        "source": "com.lingolink.app-main-33:/mipmap-xxhdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.lingolink.app-release-32:/mipmap-mdpi_ic_launcher.png.flat",
+        "source": "com.lingolink.app-main-33:/mipmap-mdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.lingolink.app-release-32:/mipmap-xxxhdpi_ic_launcher.png.flat",
+        "source": "com.lingolink.app-main-33:/mipmap-xxxhdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.lingolink.app-release-32:/mipmap-hdpi_ic_launcher.png.flat",
+        "source": "com.lingolink.app-main-33:/mipmap-hdpi/ic_launcher.png"
+    }
+]

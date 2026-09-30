@@ -1,0 +1,464 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>LingoLink AI - Audio Translator</title>
+    <link rel="icon" href="data:,">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 { 
+            color: #333; 
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .subtitle { color: #666; margin-bottom: 30px; }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 16px;
+            color: #666;
+            transition: all 0.3s;
+        }
+        .tab.active {
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+            font-weight: bold;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .record-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+            background: #f8f9ff;
+        }
+        .record-area.recording {
+            border-color: #ff4444;
+            background: #fff0f0;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255,68,68,0.4); }
+            70% { box-shadow: 0 0 0 20px rgba(255,68,68,0); }
+            100% { box-shadow: 0 0 0 0 rgba(255,68,68,0); }
+        }
+        .mic-btn {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: none;
+            background: #667eea;
+            color: white;
+            font-size: 35px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 20px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .mic-btn:hover {
+            transform: scale(1.1);
+            background: #764ba2;
+        }
+        .mic-btn.recording {
+            background: #ff4444;
+        }
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+            background: #f8f9ff;
+        }
+        .upload-area:hover { background: #eef0ff; border-color: #764ba2; }
+        .upload-area.dragover { background: #e0e3ff; border-color: #764ba2; }
+        input[type="file"] { display: none; }
+        .btn {
+            background: #667eea;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            transition: all 0.3s;
+        }
+        .btn:hover { background: #764ba2; transform: translateY(-2px); }
+        .btn:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+        .result-box {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9ff;
+            border-radius: 10px;
+            display: none;
+        }
+        .result-box.show { display: block; animation: slideIn 0.5s; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .result-item { margin: 15px 0; }
+        .result-label { font-weight: bold; color: #667eea; margin-bottom: 5px; }
+        .result-text { 
+            background: white; 
+            padding: 15px; 
+            border-radius: 8px;
+            word-wrap: break-word;
+        }
+        audio { width: 100%; margin-top: 10px; }
+        select {
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            font-size: 14px;
+            width: 100%;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        .loading.show { display: block; }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .language-selector {
+            display: flex;
+            gap: 20px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        .language-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        label { display: block; margin-bottom: 5px; color: #333; font-weight: 500; }
+        .timer {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ff4444;
+            margin: 10px 0;
+            display: none;
+        }
+        .timer.show { display: block; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌐 LingoLink AI Translator</h1>
+        <p class="subtitle">Record or upload audio, get instant translation with speech synthesis</p>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('record')">🎤 Record Audio</button>
+            <button class="tab" onclick="switchTab('upload')">📁 Upload Audio</button>
+        </div>
+        
+        <!-- Record Tab -->
+        <div class="tab-content active" id="recordTab">
+            <div class="record-area" id="recordArea">
+                <button class="mic-btn" id="micBtn" onclick="toggleRecording()">🎤</button>
+                <h3 id="recordText">Click to start recording</h3>
+                <div class="timer" id="timer">00:00</div>
+            </div>
+            
+            <div class="language-selector">
+                <div class="language-group">
+                    <label>Source Language</label>
+                    <select id="sourceLangRecord">
+                        <option value="sw">Swahili</option>
+                        <option value="en">English</option>
+                        <option value="fr">French</option>
+                        <option value="es">Spanish</option>
+                    </select>
+                </div>
+                <div class="language-group">
+                    <label>Target Language</label>
+                    <select id="targetLangRecord">
+                        <option value="en">English</option>
+                        <option value="sw">Swahili</option>
+                        <option value="fr">French</option>
+                        <option value="es">Spanish</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div style="text-align:center;">
+                <button class="btn" id="translateRecordBtn" onclick="translateRecordedAudio()" disabled>
+                    🔄 Translate Recording
+                </button>
+            </div>
+        </div>
+        
+        <!-- Upload Tab -->
+        <div class="tab-content" id="uploadTab">
+            <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                <div>📁</div>
+                <h3>Click to upload audio file</h3>
+                <p>or drag and drop here</p>
+                <p style="color:#999; margin-top:10px;">Supported formats: WAV, MP3, M4A</p>
+            </div>
+            <input type="file" id="fileInput" accept="audio/*" onchange="handleFileSelect(this.files[0])">
+            <div id="fileName" style="text-align:center; margin:10px 0; color:#333;"></div>
+            
+            <div class="language-selector">
+                <div class="language-group">
+                    <label>Source Language</label>
+                    <select id="sourceLangUpload">
+                        <option value="sw">Swahili</option>
+                        <option value="en">English</option>
+                        <option value="fr">French</option>
+                        <option value="es">Spanish</option>
+                    </select>
+                </div>
+                <div class="language-group">
+                    <label>Target Language</label>
+                    <select id="targetLangUpload">
+                        <option value="en">English</option>
+                        <option value="sw">Swahili</option>
+                        <option value="fr">French</option>
+                        <option value="es">Spanish</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div style="text-align:center;">
+                <button class="btn" id="translateUploadBtn" onclick="translateUploadedAudio()" disabled>
+                    🔄 Translate Audio
+                </button>
+            </div>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p style="margin-top:10px; color:#666;">Processing audio... This may take a few minutes</p>
+        </div>
+        
+        <div class="result-box" id="resultBox">
+            <div class="result-item">
+                <div class="result-label">📝 Original Transcript</div>
+                <div class="result-text" id="sourceText"></div>
+            </div>
+            <div class="result-item">
+                <div class="result-label">🔄 Translation</div>
+                <div class="result-text" id="translatedText"></div>
+            </div>
+            <div class="result-item">
+                <div class="result-label">🔊 Translated Audio</div>
+                <audio controls id="audioPlayer"></audio>
+            </div>
+            <div class="result-item">
+                <div class="result-label">⚡ Performance</div>
+                <div class="result-text" id="latency"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let recordedBlob = null;
+        let selectedFile = null;
+        let timerInterval = null;
+        let seconds = 0;
+        
+        // Tab switching
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            if (tab === 'record') {
+                document.querySelector('.tab:first-child').classList.add('active');
+                document.getElementById('recordTab').classList.add('active');
+            } else {
+                document.querySelector('.tab:last-child').classList.add('active');
+                document.getElementById('uploadTab').classList.add('active');
+            }
+        }
+        
+        // Microphone recording
+        async function toggleRecording() {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        }
+        
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+                
+                mediaRecorder.onstop = () => {
+                    recordedBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    document.getElementById('translateRecordBtn').disabled = false;
+                    document.getElementById('recordText').textContent = 'Recording complete! Click translate or re-record';
+                };
+                
+                mediaRecorder.start();
+                document.getElementById('micBtn').classList.add('recording');
+                document.getElementById('recordArea').classList.add('recording');
+                document.getElementById('micBtn').textContent = '⏹️';
+                document.getElementById('recordText').textContent = 'Recording... Click to stop';
+                document.getElementById('timer').classList.add('show');
+                document.getElementById('translateRecordBtn').disabled = true;
+                
+                // Start timer
+                seconds = 0;
+                timerInterval = setInterval(() => {
+                    seconds++;
+                    const mins = Math.floor(seconds / 60);
+                    const secs = seconds % 60;
+                    document.getElementById('timer').textContent = 
+                        ${mins.toString().padStart(2, '0')}:;
+                }, 1000);
+                
+            } catch (error) {
+                alert('Error accessing microphone: ' + error.message);
+            }
+        }
+        
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                document.getElementById('micBtn').classList.remove('recording');
+                document.getElementById('recordArea').classList.remove('recording');
+                document.getElementById('micBtn').textContent = '🎤';
+                document.getElementById('timer').classList.remove('show');
+                clearInterval(timerInterval);
+            }
+        }
+        
+        // File upload
+        function handleFileSelect(file) {
+            if (file) {
+                selectedFile = file;
+                document.getElementById('fileName').innerHTML = 📎 Selected: ;
+                document.getElementById('translateUploadBtn').disabled = false;
+            }
+        }
+        
+        // Drag and drop
+        const uploadArea = document.getElementById('uploadArea');
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            handleFileSelect(file);
+        });
+        
+        // Translation functions
+        async function translateRecordedAudio() {
+            if (!recordedBlob) return;
+            
+            const sourceLang = document.getElementById('sourceLangRecord').value;
+            const targetLang = document.getElementById('targetLangRecord').value;
+            
+            const file = new File([recordedBlob], 'recording.wav', { type: 'audio/wav' });
+            await processAudio(file, sourceLang, targetLang);
+        }
+        
+        async function translateUploadedAudio() {
+            if (!selectedFile) return;
+            
+            const sourceLang = document.getElementById('sourceLangUpload').value;
+            const targetLang = document.getElementById('targetLangUpload').value;
+            
+            await processAudio(selectedFile, sourceLang, targetLang);
+        }
+        
+        async function processAudio(file, sourceLang, targetLang) {
+            document.getElementById('loading').classList.add('show');
+            document.getElementById('resultBox').classList.remove('show');
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('source_lang', sourceLang);
+            formData.append('target_lang', targetLang);
+            
+            try {
+                const response = await fetch('http://localhost:8000/translate_audio/', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error(HTTP );
+                }
+                
+                const data = await response.json();
+                
+                document.getElementById('sourceText').textContent = data.source_text;
+                document.getElementById('translatedText').textContent = data.translated_text;
+                document.getElementById('latency').textContent = Processing time:  seconds;
+                
+                if (data.tts_file_path) {
+                    const audioUrl = http://localhost:8000/;
+                    document.getElementById('audioPlayer').src = audioUrl;
+                }
+                
+                document.getElementById('loading').classList.remove('show');
+                document.getElementById('resultBox').classList.add('show');
+                
+            } catch (error) {
+                document.getElementById('loading').classList.remove('show');
+                alert('Error: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

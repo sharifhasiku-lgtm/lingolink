@@ -1,0 +1,18 @@
+import { encodeBase64 } from '../utils/encoding.js';
+export function createVideoStreamRequest(params, requestId) {
+    const { control_frames, init_image, reference_images, ...rest } = params;
+    return {
+        ...rest,
+        ...(control_frames !== undefined && {
+            control_frames: control_frames.map(encodeBase64)
+        }),
+        ...(init_image !== undefined && {
+            init_image: encodeBase64(init_image)
+        }),
+        ...(reference_images !== undefined && {
+            reference_images: reference_images.map(encodeBase64)
+        }),
+        type: 'videoStream',
+        requestId
+    };
+}

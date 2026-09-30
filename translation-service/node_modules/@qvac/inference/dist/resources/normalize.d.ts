@@ -1,0 +1,12 @@
+import type { ResourceMetric, ResourceProvenance } from './types.js';
+export declare function unavailableMetric<T>(reason?: string): ResourceMetric<T>;
+export declare function unverifiedMetric<T>(reason?: string): ResourceMetric<T>;
+export declare function failedMetric<T>(reason: string): ResourceMetric<T>;
+export declare function normalizeNonNegativeMetric(value: unknown, provenance: ResourceProvenance): ResourceMetric<number>;
+export declare function normalizePositiveMetric(value: unknown, provenance: ResourceProvenance): ResourceMetric<number>;
+export declare function normalizeNonNegativeIntegerMetric(value: unknown, provenance: ResourceProvenance): ResourceMetric<number>;
+export declare function normalizePositiveIntegerMetric(value: unknown, provenance: ResourceProvenance): ResourceMetric<number>;
+export declare function normalizeUtilizationMetric(value: unknown, provenance: ResourceProvenance): ResourceMetric<number>;
+export declare function normalizeEnumMetric(value: unknown, allowedValues: readonly number[], provenance: ResourceProvenance): ResourceMetric<number>;
+export declare function normalizeStringMetric(value: unknown, provenance: ResourceProvenance): ResourceMetric<string>;
+export declare function normalizeBooleanMetric(value: unknown, provenance: ResourceProvenance): ResourceMetric<boolean>;

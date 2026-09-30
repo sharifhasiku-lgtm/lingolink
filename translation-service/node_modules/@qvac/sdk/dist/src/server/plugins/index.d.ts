@@ -1,0 +1,2 @@
+export { registerPlugin, registerPlugins, getPlugin, getPluginHandler, hasPlugin, getAllPlugins, clearPlugins, unregisterPlugin } from '@qvac/inference/plugin-registry';
+//# sourceMappingURL=index.d.ts.map
