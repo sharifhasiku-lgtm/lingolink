@@ -850,10 +850,41 @@
         }
         
         function logout() {
-            if (confirm('Logout?')) {
-                localStorage.removeItem('lingolink_current_user'); localStorage.removeItem('lingolink_token'); localStorage.removeItem('lingolink_refresh');
+            showLogoutConfirm();
+        }
+
+        function showLogoutConfirm() {
+            const overlay = document.createElement('div');
+            overlay.id = 'logoutModal';
+            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:99999;backdrop-filter:blur(4px);';
+
+            overlay.innerHTML = `
+                <div style="background:#1E1E2E;border-radius:16px;padding:24px;max-width:340px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.1);">
+                    <div style="font-size:18px;font-weight:600;color:#FFFFFF;margin-bottom:8px;">Want to Log Out?</div>
+                    <div style="font-size:14px;color:#B0B0C0;margin-bottom:24px;line-height:1.5;">You will need to log in again to use LingoLink.</div>
+                    <div style="display:flex;gap:10px;justify-content:flex-end;">
+                        <button id="logoutCancelBtn" style="padding:10px 20px;background:transparent;color:#B0B0C0;border:1px solid rgba(255,255,255,0.2);border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;">Cancel</button>
+                        <button id="logoutConfirmBtn" style="padding:10px 20px;background:linear-gradient(135deg,#667eea,#764ba2);color:#FFFFFF;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Log Out</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(overlay);
+
+            document.getElementById('logoutCancelBtn').onclick = function() {
+                overlay.remove();
+            };
+
+            document.getElementById('logoutConfirmBtn').onclick = function() {
+                localStorage.removeItem('lingolink_current_user');
+                localStorage.removeItem('lingolink_token');
+                localStorage.removeItem('lingolink_refresh');
                 location.reload();
-            }
+            };
+
+            overlay.onclick = function(e) {
+                if (e.target === overlay) overlay.remove();
+            };
         }
         
         function showMainApp(user) {
