@@ -394,9 +394,21 @@
         }
         
         const savedAuth = sessionStorage.getItem('adminAuth');
-        if (savedAuth) {
-            authHeader = savedAuth;
-            showDashboard();
+        const savedUser = sessionStorage.getItem('adminUser');
+        if (savedAuth && savedUser) {
+            try {
+                const parsedUser = JSON.parse(savedUser);
+                if (parsedUser.role === 'admin') {
+                    authHeader = savedAuth;
+                    showDashboard();
+                } else {
+                    sessionStorage.removeItem('adminAuth');
+                    sessionStorage.removeItem('adminUser');
+                }
+            } catch (e) {
+                sessionStorage.removeItem('adminAuth');
+                sessionStorage.removeItem('adminUser');
+            }
         }
         
         async function adminLogin() {
@@ -418,9 +430,13 @@
                     body: JSON.stringify({ username, password })
                 });
                 if (!response.ok) throw new Error('Invalid credentials');
-                const basic = btoa(username + ':' + password);
-                authHeader = 'Basic ' + basic;
+                const loginData = await response.json();
+                if (!loginData.access_token || !loginData.user || loginData.user.role !== 'admin') {
+                    throw new Error('Not an admin account');
+                }
+                authHeader = 'Bearer ' + loginData.access_token;
                 sessionStorage.setItem('adminAuth', authHeader);
+                sessionStorage.setItem('adminUser', JSON.stringify(loginData.user));
                 showDashboard();
             } catch (error) {
                 errorDiv.textContent = 'Invalid username or password';
@@ -429,11 +445,10 @@
         }
         
         function adminLogout() {
-            if (confirm('Logout from admin panel?')) {
-                sessionStorage.removeItem('adminAuth');
-                authHeader = null;
-                location.reload();
-            }
+            sessionStorage.removeItem('adminAuth');
+            sessionStorage.removeItem('adminUser');
+            authHeader = null;
+            location.reload();
         }
         
         function showDashboard() {
@@ -661,8 +676,9 @@
                     throw new Error('Failed to load translations');
                 }
                 const data = await response.json();
-                
-                if (!data.records || data.records.length === 0) {
+                const records = Array.isArray(data) ? data : (data.records || []);
+
+                if (!records || records.length === 0) {
                     document.getElementById('translationsTable').innerHTML = 
                         '<div class="empty-state">No translations yet</div>';
                     return;
