@@ -13,3 +13,6 @@ webview-apk/local.properties
 
 # Flutter (removed)
 lingolink_mobile/
+
+# Admin panel backups
+node-server/admin.html.bak*
