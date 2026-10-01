@@ -22,14 +22,17 @@ REFRESH_TOKEN_EXPIRE_DAYS = 7
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer(auto_error=False)
 
+
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
+
 
 def verify_password(plain: str, hashed: str) -> bool:
     try:
         return pwd_context.verify(plain, hashed)
     except Exception:
         return False
+
 
 def create_access_token(user_id: int, email: str, role: str) -> str:
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -39,9 +42,10 @@ def create_access_token(user_id: int, email: str, role: str) -> str:
         "role": role,
         "exp": expire,
         "iat": datetime.utcnow(),
-        "type": "access"
+        "type": "access",
     }
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
 
 def create_refresh_token(user_id: int, db: Session) -> str:
     token = secrets.token_urlsafe(64)
@@ -51,62 +55,65 @@ def create_refresh_token(user_id: int, db: Session) -> str:
     db.commit()
     return token
 
-def verify_refresh_token(token: str, db: Session) -> Optional[RefreshToken]:
-    rt = db.query(RefreshToken).filter(RefreshToken.token == token).first()
+
+def verify_refresh_token(db: Session, token: str) -> Optional[User]:
+    rt = db.query(RefreshToken).filter(
+        RefreshToken.token == token,
+        RefreshToken.revoked == False,
+    ).first()
     if not rt:
-        return None
-    if rt.revoked:
         return None
     if rt.expires_at < datetime.utcnow():
         return None
-    return rt
+    return db.query(User).filter(User.id == rt.user_id).first()
 
-def revoke_refresh_token(token: str, db: Session) -> bool:
+
+def revoke_refresh_token(db: Session, token: str) -> None:
     rt = db.query(RefreshToken).filter(RefreshToken.token == token).first()
-    if not rt:
-        return False
-    rt.revoked = True
-    db.commit()
-    return True
+    if rt:
+        rt.revoked = True
+        db.commit()
 
-def revoke_all_user_tokens(user_id: int, db: Session):
+
+def revoke_all_user_tokens(db: Session, user_id: int) -> None:
     db.query(RefreshToken).filter(
         RefreshToken.user_id == user_id,
-        RefreshToken.revoked == False
+        RefreshToken.revoked == False,
     ).update({"revoked": True})
     db.commit()
 
+
 def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    db: Session = Depends(get_db),
 ) -> User:
-    if credentials is None:
+    if not credentials:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing authentication token",
+            detail="Not authenticated",
             headers={"WWW-Authenticate": "Bearer"},
         )
     token = credentials.credentials
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        if payload.get("type") != "access":
-            raise HTTPException(status_code=401, detail="Invalid token type")
-        user_id = int(payload.get("sub"))
-    except (JWTError, ValueError, TypeError):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        user_id = payload.get("sub")
+        token_type = payload.get("type")
+        if user_id is None or token_type != "access":
+            raise HTTPException(status_code=401, detail="Invalid token")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
 
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).filter(User.id == int(user_id)).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
-    if not user.is_active:
-        raise HTTPException(status_code=403, detail="Account disabled")
     return user
 
+
 def require_admin(current_user: User = Depends(get_current_user)) -> User:
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
+    """Allow only users with role='admin'."""
+    if not current_user or current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
     return current_user

@@ -63,8 +63,6 @@ ADMIN_PASSWORD = "lingolink256"
 whisper_model = None
 _models_loaded = False
 
-# ===== LANGUAGE MAPS =====
-
 NLLB_TO_GOOGLE = {
     "eng_Latn": "en", "swh_Latn": "sw", "yor_Latn": "yo", "hau_Latn": "ha",
     "ibo_Latn": "ig", "zul_Latn": "zu", "amh_Ethi": "am", "som_Latn": "so",
@@ -86,42 +84,29 @@ MM_MAP = {
     "af": "af-ZA",
 }
 
-# ===== SINGLE MALE MULTILINGUAL VOICE =====
 SINGLE_VOICE = "en-US-AndrewMultilingualNeural"
 
 
 def load_models():
-    """No-op — translation handled by external APIs."""
     return
 
 
 def get_voice(lang_code=None):
-    """Always return the single multilingual male voice."""
     return SINGLE_VOICE
 
 
-# ===== CORE TRANSLATION HELPERS =====
-
 def _mymemory(text, src_mm, tgt_mm):
-    """Call MyMemory. Returns translated text or None if it fails."""
     import requests
-
     url = "https://api.mymemory.translated.net/get"
-    params = {
-        "q": text,
-        "langpair": f"{src_mm}|{tgt_mm}",
-        "de": "lingolink@example.com",
-    }
+    params = {"q": text, "langpair": f"{src_mm}|{tgt_mm}", "de": "lingolink@example.com"}
     try:
         resp = requests.get(url, params=params, timeout=15)
         if resp.status_code != 200:
             return None
         data = resp.json()
         translated = data.get("responseData", {}).get("translatedText", "")
-
         if not translated:
             return None
-
         upper = translated.upper()
         bad_markers = [
             "MYMEMORY WARNING", "QUOTA", "USED ALL AVAILABLE",
@@ -130,10 +115,8 @@ def _mymemory(text, src_mm, tgt_mm):
         ]
         if any(m in upper for m in bad_markers):
             return None
-
         if translated.strip().lower() == text.strip().lower():
             return None
-
         return translated
     except Exception as e:
         print(f"[MYMEMORY] error: {e}", flush=True)
@@ -141,23 +124,14 @@ def _mymemory(text, src_mm, tgt_mm):
 
 
 def _google_unofficial(text, src_2, tgt_2):
-    """Call Google Translate unofficial endpoint. Returns translated text or None."""
     import requests
-
     url = "https://translate.googleapis.com/translate_a/single"
-    params = {
-        "client": "gtx",
-        "sl": src_2,
-        "tl": tgt_2,
-        "dt": "t",
-        "q": text,
-    }
+    params = {"client": "gtx", "sl": src_2, "tl": tgt_2, "dt": "t", "q": text}
     try:
         resp = requests.get(url, params=params, timeout=15)
         if resp.status_code != 200:
             return None
         data = resp.json()
-        # Response structure: [[["translated","source",null,null,...]],...]
         if not data or not data[0]:
             return None
         translated = "".join([item[0] for item in data[0] if item and item[0]])
@@ -172,83 +146,58 @@ def _google_unofficial(text, src_2, tgt_2):
 
 
 def _try_direct(text, src_2, tgt_2):
-    """Try direct translation. Returns (translated, method) or (None, None)."""
     src_mm = MM_MAP.get(src_2, src_2)
     tgt_mm = MM_MAP.get(tgt_2, tgt_2)
-
-    # Attempt 1: MyMemory direct
     r = _mymemory(text, src_mm, tgt_mm)
     if r:
         return r, "mymemory-direct"
-
-    # Attempt 2: Google unofficial direct
     r = _google_unofficial(text, src_2, tgt_2)
     if r:
         return r, "google-direct"
-
     return None, None
 
 
 def _try_pivot(text, src_2, tgt_2):
-    """Translate via English pivot."""
     if src_2 == "en" or tgt_2 == "en":
         return None, None
-
     src_mm = MM_MAP.get(src_2, src_2)
     en_mm = MM_MAP.get("en", "en-GB")
-
-    # Step 1: source -> English
     mid = _mymemory(text, src_mm, en_mm)
     method_step1 = "mymemory-pivot-1"
     if not mid:
         mid = _google_unofficial(text, src_2, "en")
         method_step1 = "google-pivot-1"
-
     if not mid:
         return None, None
-
-    # Step 2: English -> target
     tgt_mm = MM_MAP.get(tgt_2, tgt_2)
     final = _mymemory(mid, en_mm, tgt_mm)
     method_step2 = "mymemory-pivot-2"
     if not final:
         final = _google_unofficial(mid, "en", tgt_2)
         method_step2 = "google-pivot-2"
-
     if not final:
         return None, None
-
     return final, f"{method_step1}+{method_step2}"
 
 
 def _do_translate(text, source_lang, target_lang):
-    """Unified translation with direct + pivot fallback."""
     if source_lang == target_lang:
         return text
-
     src_2 = NLLB_TO_GOOGLE.get(source_lang, "en")
     tgt_2 = NLLB_TO_GOOGLE.get(target_lang, "en")
-
     print(f"[TRANSLATE] {src_2} -> {tgt_2}: {text[:60]}", flush=True)
-
-    # Attempt 1: direct
     result, method = _try_direct(text, src_2, tgt_2)
     if result:
         print(f"[TRANSLATE] {method}: {result[:80]}", flush=True)
         return result
-
-    # Attempt 2: pivot via English
     print(f"[TRANSLATE] direct failed, trying pivot...", flush=True)
     result, method = _try_pivot(text, src_2, tgt_2)
     if result:
         print(f"[TRANSLATE] {method}: {result[:80]}", flush=True)
         return result
-
     print(f"[TRANSLATE] ALL methods failed, returning original", flush=True)
     return text
 
-
-# ===== WHISPER =====
 
 def load_whisper():
     global whisper_model
@@ -278,7 +227,6 @@ async def preload_on_startup():
     else:
         print("Startup: kicking off background model preload", flush=True)
         threading.Thread(target=_preload_models, daemon=True).start()
-
     try:
         db = SessionLocal()
         seed_rbac(db)
@@ -305,8 +253,6 @@ def verify_admin_basic(authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=401, detail="Invalid admin credentials")
     return True
 
-
-# ===== WEBSOCKET =====
 
 WHISPER_TO_NLLB = {
     "en": "eng_Latn", "sw": "swh_Latn", "fr": "fra_Latn", "de": "deu_Latn",
@@ -350,10 +296,8 @@ async def agent_websocket(ws: WebSocket):
         while True:
             data = await ws.receive_json()
             msg_type = data.get("type")
-
             if msg_type == "agent_hello":
                 await safe_send(ws, {"type": "welcome", "message": "Connected"})
-
             elif msg_type == "call_start":
                 session["call_active"] = True
                 session["call_id"] = data.get("call_id")
@@ -366,11 +310,9 @@ async def agent_websocket(ws: WebSocket):
                     await safe_send(ws, {"type": "system", "text": "Ready."})
                 except Exception as e:
                     await safe_send(ws, {"type": "error", "message": str(e)})
-
             elif msg_type == "call_end":
                 session["call_active"] = False
                 await safe_send(ws, {"type": "call_ended", "call_id": session["call_id"]})
-
             elif msg_type == "audio_chunk":
                 if not session["call_active"]:
                     continue
@@ -384,12 +326,10 @@ async def agent_websocket(ws: WebSocket):
                     audio_bytes = base64.b64decode(audio_b64)
                 except Exception:
                     continue
-
                 pcm_bytes = audio_bytes[44:] if audio_bytes[:4] == b'RIFF' else audio_bytes
                 pcm_float = pcm_to_float32(pcm_bytes)
                 if is_silent(pcm_float):
                     continue
-
                 tmp_path = None
                 try:
                     tmp_fd, tmp_path = tempfile.mkstemp(suffix=".wav")
@@ -399,19 +339,15 @@ async def agent_websocket(ws: WebSocket):
                         wf.setsampwidth(2)
                         wf.setframerate(16000)
                         wf.writeframes((pcm_float * 32767).astype(np.int16).tobytes())
-
                     load_whisper()
                     result = whisper_model.transcribe(tmp_path, fp16=False, language=None, task="transcribe",
                         condition_on_previous_text=False, no_speech_threshold=0.6)
                     text = result.get("text", "").strip()
                     detected = result.get("language", "en")
-
                     if not text or len(text) < 3:
                         continue
-
                     await safe_send(ws, {"type": "transcript", "speaker": speaker, "text": text,
                         "detected_lang": detected, "chunk": chunk_id})
-
                     source_nllb = WHISPER_TO_NLLB.get(detected)
                     target = session["target_lang"]
                     if source_nllb and source_nllb != target:
@@ -427,12 +363,9 @@ async def agent_websocket(ws: WebSocket):
                             os.unlink(tmp_path)
                         except Exception:
                             pass
-
     except WebSocketDisconnect:
         print("Agent disconnected", flush=True)
 
-
-# ===== MODELS =====
 
 class TranslationRequest(BaseModel):
     text: str
@@ -444,8 +377,6 @@ class AdminLoginRequest(BaseModel):
     username: str
     password: str
 
-
-# ===== DUBBING =====
 
 @app.post("/dubbing/start")
 async def dubbing_start(
@@ -493,8 +424,6 @@ async def dubbing_start(
     return {"job_id": job_id, "source_lang": "auto", "target_lang": target_lang,
             "status": "processing", "output_url": f"/data/dubbed/{job_id}_dubbed.mp4"}
 
-
-# ===== AUTH =====
 
 class SignupRequest(BaseModel):
     name: str
@@ -594,8 +523,6 @@ async def update_profile(
             "email": current_user.email, "role": current_user.role}}
 
 
-# ===== RBAC =====
-
 @app.get("/rbac/me/permissions/")
 async def my_permissions(
     current_user: User = Depends(get_current_user),
@@ -664,57 +591,153 @@ async def create_role(
     return {"success": True, "role_id": role.id, "name": role.name}
 
 
-# ===== ADMIN =====
+# ===== ADMIN (role=admin ONLY) =====
 
 @app.post("/admin/login/")
-async def admin_login(request: AdminLoginRequest):
-    if request.username == ADMIN_USERNAME and request.password == ADMIN_PASSWORD:
-        return {"success": True, "message": "Login successful"}
-    raise HTTPException(status_code=401, detail="Invalid credentials")
+async def admin_login(request: AdminLoginRequest, db: Session = Depends(get_db)):
+    if request.username != ADMIN_USERNAME or request.password != ADMIN_PASSWORD:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    admin_user = db.query(User).filter(User.email == "admin@lingolink.local").first()
+    if not admin_user:
+        admin_user = User(
+            name="Admin",
+            email="admin@lingolink.local",
+            password=hash_password(ADMIN_PASSWORD),
+            role="admin",
+        )
+        db.add(admin_user)
+        db.commit()
+        db.refresh(admin_user)
+    else:
+        if admin_user.role != "admin":
+            admin_user.role = "admin"
+            db.commit()
+    access = create_access_token(admin_user.id, admin_user.email, admin_user.role)
+    refresh = create_refresh_token(admin_user.id, db)
+    return {
+        "success": True,
+        "message": "Login successful",
+        "access_token": access,
+        "refresh_token": refresh,
+        "token_type": "bearer",
+        "user": {
+            "id": admin_user.id,
+            "name": admin_user.name,
+            "email": admin_user.email,
+            "role": admin_user.role,
+        },
+    }
+
+
+@app.get("/admin/check/")
+async def admin_check(current_user: User = Depends(require_admin)):
+    return {"is_admin": True, "user_id": current_user.id, "email": current_user.email}
 
 
 @app.get("/admin/stats/")
 async def admin_stats(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
-    _: None = Depends(require_permission("admin")),
 ):
+    now = datetime.utcnow()
     total_users = db.query(User).count()
     total_translations = db.query(TranslationRecord).count()
-    lang_pairs = db.query(TranslationRecord.source_lang, TranslationRecord.target_lang,
-        func.count(TranslationRecord.id).label('count')).group_by(
-        TranslationRecord.source_lang, TranslationRecord.target_lang).order_by(
-        func.count(TranslationRecord.id).desc()).limit(10).all()
-    last_24h = db.query(TranslationRecord).filter(TranslationRecord.created_at >= datetime.utcnow() - timedelta(hours=24)).count()
-    return {"total_users": total_users, "total_translations": total_translations,
-            "translations_24h": last_24h,
-            "top_language_pairs": [{"from": r[0], "to": r[1], "count": r[2]} for r in lang_pairs]}
+    last_24h = db.query(TranslationRecord).filter(
+        TranslationRecord.created_at >= now - timedelta(hours=24)
+    ).count()
+    last_7d = db.query(TranslationRecord).filter(
+        TranslationRecord.created_at >= now - timedelta(days=7)
+    ).count()
+    lang_pairs = db.query(
+        TranslationRecord.source_lang,
+        TranslationRecord.target_lang,
+        func.count(TranslationRecord.id).label('count'),
+    ).group_by(
+        TranslationRecord.source_lang,
+        TranslationRecord.target_lang,
+    ).order_by(
+        func.count(TranslationRecord.id).desc()
+    ).limit(10).all()
+    return {
+        "total_users": total_users,
+        "total_translations": total_translations,
+        "translations_24h": last_24h,
+        "last_24h": last_24h,
+        "last_7d": last_7d,
+        "top_language_pairs": [
+            {"from": r[0], "to": r[1], "count": r[2]} for r in lang_pairs
+        ],
+    }
 
 
 @app.get("/admin/users/")
 async def admin_users(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
-    _: None = Depends(require_permission("admin")),
 ):
     users = db.query(User).order_by(User.id.desc()).limit(100).all()
-    return [{"id": u.id, "name": u.name, "email": u.email, "role": u.role,
-             "created_at": u.created_at.isoformat() if u.created_at else None} for u in users]
+    return [
+        {
+            "id": u.id, "name": u.name, "email": u.email, "role": u.role,
+            "created_at": u.created_at.isoformat() if u.created_at else None,
+        }
+        for u in users
+    ]
+
+
+@app.get("/admin/translations/")
+async def admin_translations(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+    limit: int = 100,
+):
+    records = db.query(TranslationRecord).order_by(TranslationRecord.id.desc()).limit(limit).all()
+    return [
+        {
+            "id": r.id,
+            "source_lang": r.source_lang,
+            "target_lang": r.target_lang,
+            "source_text": r.source_text,
+            "translated_text": r.translated_text,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in records
+    ]
+
+
+@app.delete("/admin/translations/{record_id}")
+async def admin_delete_translation(
+    record_id: int,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    r = db.query(TranslationRecord).filter(TranslationRecord.id == record_id).first()
+    if not r:
+        raise HTTPException(status_code=404, detail="Record not found")
+    db.delete(r)
+    db.commit()
+    return {"success": True, "deleted_id": record_id}
+
+
+@app.delete("/admin/translations/")
+async def admin_delete_all_translations(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    count = db.query(TranslationRecord).count()
+    db.query(TranslationRecord).delete()
+    db.commit()
+    return {"success": True, "deleted_count": count}
 
 
 @app.get("/admin/records/")
 async def admin_records(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
-    _: None = Depends(require_permission("admin")),
+    limit: int = 100,
 ):
-    records = db.query(TranslationRecord).order_by(TranslationRecord.id.desc()).limit(100).all()
-    return [{"id": r.id, "source_lang": r.source_lang, "target_lang": r.target_lang,
-             "source_text": r.source_text, "translated_text": r.translated_text,
-             "created_at": r.created_at.isoformat() if r.created_at else None} for r in records]
+    return await admin_translations(current_user=current_user, db=db, limit=limit)
 
-
-# ===== TEXT TRANSLATE =====
 
 @app.post("/translate_text/")
 async def translate_text(
@@ -732,7 +755,6 @@ async def translate_text(
         tts_url = f"/data/audio/{tts_filename}"
     except Exception as e:
         print(f"TTS error: {e}", flush=True)
-
     rec = TranslationRecord(source_lang=request.source_lang, target_lang=request.target_lang,
                             source_text=request.text, translated_text=translated)
     db.add(rec); db.commit(); db.refresh(rec)
@@ -740,8 +762,6 @@ async def translate_text(
             "source_lang": request.source_lang, "target_lang": request.target_lang,
             "audio_url": tts_url, "elapsed": round(time.time() - start, 2)}
 
-
-# ===== AUDIO TRANSLATE =====
 
 @app.post("/translate_audio/")
 async def translate_audio(
@@ -765,7 +785,6 @@ async def translate_audio(
         tts_url = f"/data/audio/{tts_filename}"
     except Exception as e:
         print(f"TTS error: {e}", flush=True)
-
     rec = TranslationRecord(source_lang=source_lang, target_lang=target_lang,
                             source_text=src_text, translated_text=translated)
     db.add(rec); db.commit(); db.refresh(rec)
@@ -773,8 +792,6 @@ async def translate_audio(
             "source_lang": source_lang, "target_lang": target_lang,
             "audio_url": tts_url, "elapsed": round(time.time() - start, 2)}
 
-
-# ===== HISTORY =====
 
 @app.get("/history/")
 async def get_history(
