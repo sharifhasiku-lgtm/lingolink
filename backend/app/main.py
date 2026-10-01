@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Header, WebSocket, WebSocketDisconnect
+﻿from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Header, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
@@ -72,7 +72,8 @@ NLLB_TO_GOOGLE = {
     "ita_Latn": "it", "por_Latn": "pt", "arb_Arab": "ar", "zho_Hans": "zh-CN",
     "jpn_Jpan": "ja", "kor_Kore": "ko", "hin_Deva": "hi", "rus_Cyrl": "ru",
     "nld_Latn": "nl", "tur_Latn": "tr", "vie_Latn": "vi", "urd_Arab": "ur",
-    "afr_Latn": "af",
+    "afr_Latn": "af", "lug_Latn": "lg", "kik_Latn": "ki", "luo_Latn": "luo",
+    "kam_Latn": "kam", "kin_Latn": "rw", "xho_Latn": "xh",
 }
 
 MM_MAP = {
@@ -139,25 +140,34 @@ def _mymemory(text, src_mm, tgt_mm):
         return None
 
 
-def _lingva(text, src, tgt):
-    """Call Lingva (Google frontend). Returns translated text or None."""
+def _google_unofficial(text, src_2, tgt_2):
+    """Call Google Translate unofficial endpoint. Returns translated text or None."""
     import requests
-    from urllib.parse import quote
 
-    url = f"https://lingva.ml/api/v1/{src}/{tgt}/{quote(text)}"
+    url = "https://translate.googleapis.com/translate_a/single"
+    params = {
+        "client": "gtx",
+        "sl": src_2,
+        "tl": tgt_2,
+        "dt": "t",
+        "q": text,
+    }
     try:
-        resp = requests.get(url, timeout=15)
+        resp = requests.get(url, params=params, timeout=15)
         if resp.status_code != 200:
             return None
         data = resp.json()
-        translated = data.get("translation", "")
+        # Response structure: [[["translated","source",null,null,...]],...]
+        if not data or not data[0]:
+            return None
+        translated = "".join([item[0] for item in data[0] if item and item[0]])
         if not translated:
             return None
         if translated.strip().lower() == text.strip().lower():
             return None
         return translated
     except Exception as e:
-        print(f"[LINGVA] error: {e}", flush=True)
+        print(f"[GOOGLE] error: {e}", flush=True)
         return None
 
 
@@ -166,13 +176,15 @@ def _try_direct(text, src_2, tgt_2):
     src_mm = MM_MAP.get(src_2, src_2)
     tgt_mm = MM_MAP.get(tgt_2, tgt_2)
 
+    # Attempt 1: MyMemory direct
     r = _mymemory(text, src_mm, tgt_mm)
     if r:
         return r, "mymemory-direct"
 
-    r = _lingva(text, src_2, tgt_2)
+    # Attempt 2: Google unofficial direct
+    r = _google_unofficial(text, src_2, tgt_2)
     if r:
-        return r, "lingva-direct"
+        return r, "google-direct"
 
     return None, None
 
@@ -185,21 +197,23 @@ def _try_pivot(text, src_2, tgt_2):
     src_mm = MM_MAP.get(src_2, src_2)
     en_mm = MM_MAP.get("en", "en-GB")
 
+    # Step 1: source -> English
     mid = _mymemory(text, src_mm, en_mm)
     method_step1 = "mymemory-pivot-1"
     if not mid:
-        mid = _lingva(text, src_2, "en")
-        method_step1 = "lingva-pivot-1"
+        mid = _google_unofficial(text, src_2, "en")
+        method_step1 = "google-pivot-1"
 
     if not mid:
         return None, None
 
+    # Step 2: English -> target
     tgt_mm = MM_MAP.get(tgt_2, tgt_2)
     final = _mymemory(mid, en_mm, tgt_mm)
     method_step2 = "mymemory-pivot-2"
     if not final:
-        final = _lingva(mid, "en", tgt_2)
-        method_step2 = "lingva-pivot-2"
+        final = _google_unofficial(mid, "en", tgt_2)
+        method_step2 = "google-pivot-2"
 
     if not final:
         return None, None
@@ -217,11 +231,13 @@ def _do_translate(text, source_lang, target_lang):
 
     print(f"[TRANSLATE] {src_2} -> {tgt_2}: {text[:60]}", flush=True)
 
+    # Attempt 1: direct
     result, method = _try_direct(text, src_2, tgt_2)
     if result:
         print(f"[TRANSLATE] {method}: {result[:80]}", flush=True)
         return result
 
+    # Attempt 2: pivot via English
     print(f"[TRANSLATE] direct failed, trying pivot...", flush=True)
     result, method = _try_pivot(text, src_2, tgt_2)
     if result:
@@ -299,6 +315,7 @@ WHISPER_TO_NLLB = {
     "ru": "rus_Cyrl", "nl": "nld_Latn", "tr": "tur_Latn", "vi": "vie_Latn",
     "ur": "urd_Arab", "yo": "yor_Latn", "ha": "hau_Latn", "ig": "ibo_Latn",
     "zu": "zul_Latn", "xh": "xho_Latn", "af": "afr_Latn", "so": "som_Latn",
+    "lg": "lug_Latn", "rw": "kin_Latn",
 }
 
 
