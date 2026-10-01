@@ -10,5 +10,6 @@
         <item name="android:windowFullscreen">false</item>
         <item name="android:statusBarColor">#0F0F1E</item>
         <item name="android:navigationBarColor">#0F0F1E</item>
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>

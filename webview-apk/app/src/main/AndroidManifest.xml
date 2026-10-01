@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
@@ -10,20 +10,32 @@
         android:icon="@mipmap/ic_launcher"
         android:label="LingoLink"
         android:supportsRtl="true"
-        android:usesCleartextTraffic="false"
         android:hardwareAccelerated="true"
+        android:usesCleartextTraffic="false"
         android:theme="@style/Theme.LingoLink">
 
         <activity
-            android:name=".MainActivity"
+            android:name=".SplashActivity"
             android:exported="true"
-            android:configChanges="orientation|screenSize|keyboardHidden"
-            android:screenOrientation="portrait"
             android:theme="@style/Theme.LingoLink.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.LingoLink.NoActionBar" />
+
+        <activity
+            android:name=".AboutActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.LingoLink.NoActionBar"
+            android:parentActivityName=".MainActivity" />
     </application>
 </manifest>
