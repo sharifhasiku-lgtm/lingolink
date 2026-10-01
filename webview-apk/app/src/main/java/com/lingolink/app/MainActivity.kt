@@ -16,13 +16,11 @@ import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ProgressBar
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var splashView: View
     private lateinit var landingView: View
     private lateinit var webContainer: FrameLayout
     private lateinit var errorView: View
@@ -30,26 +28,29 @@ class MainActivity : AppCompatActivity() {
     private lateinit var progressBar: ProgressBar
 
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
-    private val APP_URL = "https://lingolink-wine.vercel.app"
+    private val USER_URL = "https://lingolink-wine.vercel.app"
+    private val ADMIN_URL = "https://lingolink-wine.vercel.app/admin.html"
 
     private val fileChooserLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        if (filePathCallback == null) return@registerForActivityResult
-        val uris: Array<Uri>? = when (result.resultCode) {
-            Activity.RESULT_OK -> {
-                val data = result.data
-                if (data == null) null
-                else if (data.clipData != null) {
-                    val count = data.clipData!!.itemCount
-                    Array(count) { i -> data.clipData!!.getItemAt(i).uri }
-                } else if (data.data != null) arrayOf(data.data!!)
-                else null
+        val cb = filePathCallback
+        if (cb != null) {
+            val uris: Array<Uri>? = when (result.resultCode) {
+                Activity.RESULT_OK -> {
+                    val data = result.data
+                    if (data == null) null
+                    else if (data.clipData != null) {
+                        val count = data.clipData!!.itemCount
+                        Array(count) { i -> data.clipData!!.getItemAt(i).uri }
+                    } else if (data.data != null) arrayOf(data.data!!)
+                    else null
+                }
+                else -> null
             }
-            else -> null
+            cb.onReceiveValue(uris)
+            filePathCallback = null
         }
-        filePathCallback?.onReceiveValue(uris)
-        filePathCallback = null
     }
 
     private val micPermissionLauncher = registerForActivityResult(
@@ -62,16 +63,9 @@ class MainActivity : AppCompatActivity() {
 
         val root = FrameLayout(this)
 
-        // Splash (native)
-        splashView = layoutInflater.inflate(R.layout.activity_splash, root, false)
-        root.addView(splashView, FrameLayout.LayoutParams(-1, -1))
-
-        // Landing (native)
         landingView = layoutInflater.inflate(R.layout.activity_landing, root, false)
-        landingView.visibility = View.GONE
         root.addView(landingView, FrameLayout.LayoutParams(-1, -1))
 
-        // Web container
         webContainer = FrameLayout(this)
         webContainer.visibility = View.GONE
         webView = WebView(this)
@@ -81,28 +75,19 @@ class MainActivity : AppCompatActivity() {
         webContainer.addView(progressBar, FrameLayout.LayoutParams(-1, -2, android.view.Gravity.TOP))
         root.addView(webContainer, FrameLayout.LayoutParams(-1, -1))
 
-        // Error screen (native)
         errorView = layoutInflater.inflate(R.layout.activity_error, root, false)
         errorView.visibility = View.GONE
         root.addView(errorView, FrameLayout.LayoutParams(-1, -1))
 
         setContentView(root)
 
-        // Transition splash → landing
-        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-            splashView.visibility = View.GONE
-            landingView.visibility = View.VISIBLE
-        }, 1200)
+        setupWebView()
 
-        // Landing buttons
         landingView.findViewById<Button>(R.id.btnGetStarted).setOnClickListener {
-            if (!isOnline()) {
-                showError()
-            } else {
-                landingView.visibility = View.GONE
-                webContainer.visibility = View.VISIBLE
-                loadWebApp()
-            }
+            if (!isOnline()) { showError(); return@setOnClickListener }
+            landingView.visibility = View.GONE
+            webContainer.visibility = View.VISIBLE
+            loadUrl(USER_URL)
         }
 
         landingView.findViewById<Button>(R.id.btnAbout).setOnClickListener {
@@ -111,6 +96,17 @@ class MainActivity : AppCompatActivity() {
 
         landingView.findViewById<Button>(R.id.btnExit).setOnClickListener { finish() }
 
+        val logoView = landingView.findViewById<View>(R.id.logoCircle)
+        if (logoView != null) {
+            logoView.setOnLongClickListener {
+                if (!isOnline()) { showError(); return@setOnLongClickListener true }
+                landingView.visibility = View.GONE
+                webContainer.visibility = View.VISIBLE
+                loadUrl(ADMIN_URL)
+                true
+            }
+        }
+
         errorView.findViewById<Button>(R.id.btnRetry).setOnClickListener {
             errorView.visibility = View.GONE
             landingView.visibility = View.VISIBLE
@@ -118,7 +114,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     @SuppressLint("SetJavaScriptEnabled")
-    private fun loadWebApp() {
+    private fun setupWebView() {
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -183,14 +179,15 @@ class MainActivity : AppCompatActivity() {
                 request?.grant(request.resources)
             }
         }
+    }
 
+    private fun loadUrl(url: String) {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
             != PackageManager.PERMISSION_GRANTED
         ) {
             micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
         }
-
-        webView.loadUrl(APP_URL)
+        webView.loadUrl(url)
     }
 
     private fun showError() {

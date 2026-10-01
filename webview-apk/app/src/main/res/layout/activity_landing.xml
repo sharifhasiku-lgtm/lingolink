@@ -7,10 +7,15 @@
     android:gravity="center"
     android:padding="32dp">
 
+    <!-- Logo circle — tap normally does nothing, long-press opens admin -->
     <FrameLayout
+        android:id="@+id/logoCircle"
         android:layout_width="120dp"
         android:layout_height="120dp"
-        android:background="@drawable/logo_bg">
+        android:background="@drawable/logo_bg"
+        android:clickable="true"
+        android:focusable="true"
+        android:foreground="?android:attr/selectableItemBackground">
 
         <TextView
             android:layout_width="wrap_content"
@@ -86,4 +91,5 @@
         android:text="v1.0.0"
         android:textColor="#44FFFFFF"
         android:textSize="11sp" />
+
 </LinearLayout>
