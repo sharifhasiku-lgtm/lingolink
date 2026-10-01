@@ -505,9 +505,9 @@
                         <div style="margin-bottom:15px;">
                             <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
                                 <span>
-                                    <span class="lang-badge source">${p.source}</span>
+                                    <span class="lang-badge source">${p.from}</span>
                                     â†’ 
-                                    <span class="lang-badge target">${p.target}</span>
+                                    <span class="lang-badge target">${p.to}</span>
                                 </span>
                                 <strong>${p.count}</strong>
                             </div>
@@ -681,7 +681,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            ${data.records.map(r => `
+                            ${records.map(r => `
                                 <tr>
                                     <td>#${r.id}</td>
                                     <td style="max-width:250px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${r.source_text}</td>
