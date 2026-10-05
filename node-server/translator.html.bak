@@ -249,11 +249,11 @@
                 <div class="profile-container">
                     <button class="profile-icon" onclick="toggleDropdown()">👤</button>
                     <div class="dropdown-menu" id="dropdownMenu">
-                        <button class="dropdown-item" onclick="showMyStats()">📈 My Stats</button>
-                        <button class="dropdown-item" onclick="showEditProfile()">✏️ Edit Profile</button>
-                        <button class="dropdown-item" onclick="toggleTheme()">🌓 Toggle Theme</button>
-                        <button class="dropdown-item" onclick="showSupport()">📞 Support</button>
-                        <button class="dropdown-item" onclick="logout()">🚪 Logout</button>
+                        <button class="dropdown-item" onclick="showMyStats()">My Stats</button>
+                        <button class="dropdown-item" onclick="showEditProfile()">Edit Profile</button>
+                        <button class="dropdown-item" onclick="toggleTheme()">Toggle Theme</button>
+                        <button class="dropdown-item" onclick="showSupport()"> Support</button>
+                        <button class="dropdown-item" onclick="logout()">Logout</button>
                     </div>
                 </div>
             </div>
@@ -263,8 +263,8 @@
             <button class="tab active" onclick="switchTab('translate')">🔄 Text</button>
             <button class="tab" onclick="switchTab('record')">🎤 Record</button>
             <button class="tab" onclick="switchTab('upload')">📁 Upload</button>
-            <button class="tab" onclick="switchTab('history')">📜 History</button>
-            <button class="tab" onclick="switchTab('favorites')">⭐ Favorites</button>
+            <button class="tab" onclick="switchTab('history')">History</button>
+            <button class="tab" onclick="switchTab('favorites')">Favorites</button>
         </div>
         <div class="tab-content active" id="translateTab">
             <div class="language-selector">
@@ -438,7 +438,7 @@
     
     <div class="modal" id="editProfileModal">
         <div class="modal-content">
-            <h3>✏️ Edit Profile</h3>
+            <h3>Edit Profile</h3>
             <input type="text" id="editName" placeholder="Full Name">
             <input type="email" id="editEmail" placeholder="Email">
             <input type="password" id="editPassword" placeholder="New Password (optional)">
@@ -451,7 +451,7 @@
     </div>
     <div class="modal" id="myStatsModal">
         <div class="modal-content" style="max-width:650px;">
-            <h3>📈 My Stats</h3>
+            <h3> My Stats</h3>
             <div id="myStatsContent">
                 <div class="stats-empty">Loading your stats...</div>
             </div>
@@ -460,10 +460,10 @@
     </div>
     <div class="modal" id="supportModal">
         <div class="modal-content">
-            <h3>📞 Call Center Support</h3>
-            <p>📧 support@lingolink.ai</p>
-            <p>📱 +256 700 123 456</p>
-            <p>🕐 Mon-Fri, 9am-5pm EAT</p>
+            <h3>Call Center Support</h3>
+            <p>support@lingolink.ai</p>
+            <p>+256 758 903 217</p>
+            <p>Mon-Fri, 9am-5pm EAT</p>
             <button class="btn" onclick="closeSupport()">Close</button>
         </div>
     </div>
