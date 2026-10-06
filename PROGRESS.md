@@ -170,3 +170,37 @@ This is not shown anywhere in the UI — only those who know can access it.
 ## REMINDER
 - Render Postgres expires Oct 24, 2026
 - MyMemory quota: 50k chars/day shared via lingolink@example.com
+
+---
+
+# Session Notes — Oct 6, 2026
+
+## WHERE WE STOPPED
+- Sunbird AI account verification is blocked (email never verified, no API path to fix)
+- Decided to SKIP the language upgrade for now
+- App works with: International languages + Swahili (via MyMemory + Google)
+- Ugandan languages (Runyankole, Acholi, Ateso, Lugbara) — deferred until budget exists
+
+## SUNBIRD ACCOUNT (for future reference)
+- Multiple accounts created; none can get a token because email_verified=False
+- Account IDs: 1216-1229
+- Emails tried: sharifhasiku@gmail.com, sharifhasiku+lingolink@gmail.com, sharifhasiku+oct6@gmail.com, sharifhasiku+oct6fresh@gmail.com, sharifhasiku+sbMMDDHHMMSS@gmail.com
+- Free tier signup requires email verification (link sent to inbox, never arrived)
+- To revisit: contact support@sunbird.ai OR use Featherless.ai ($0.48-0.96 per 1M tokens)
+
+## FUTURE OPTIONS FOR UGANDAN LANGUAGES
+1. Google Cloud Translate free tier — supports Acholi only, needs billing account
+2. Self-host Sunbird's NLLB-SALT model (Hugging Face) — needs 2-3GB RAM
+3. Featherless.ai — paid, hosts Sunflower-14B
+4. Sunbird AI — free tier, blocked on email verification
+
+## CURRENT WORKING STATE
+- Backend: https://lingolink-backend-zur3.onrender.com
+- Frontend: https://lingolink-wine.vercel.app
+- Admin: https://lingolink-wine.vercel.app/admin.html
+- APK: webview-apk/app/build/outputs/apk/release/app-release.apk
+- Admin credentials: admin / lingolink256
+- Test user: render@test.com / test1234
+
+## REMINDER
+- Render Postgres expires Oct 24, 2026 (18 days)
