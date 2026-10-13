@@ -16,6 +16,7 @@ import subprocess
 import uuid
 import threading
 import wave
+import requests
 from datetime import datetime, timedelta
 
 from app.models import (
@@ -74,6 +75,18 @@ NLLB_TO_GOOGLE = {
     "kam_Latn": "kam", "kin_Latn": "rw", "xho_Latn": "xh",
 }
 
+# Reverse map: Google ISO code -> NLLB code
+ISO_TO_NLLB = {
+    "en": "eng_Latn", "sw": "swh_Latn", "yo": "yor_Latn", "ha": "hau_Latn",
+    "ig": "ibo_Latn", "zu": "zul_Latn", "am": "amh_Ethi", "so": "som_Latn",
+    "ln": "lin_Latn", "fr": "fra_Latn", "de": "deu_Latn", "es": "spa_Latn",
+    "it": "ita_Latn", "pt": "por_Latn", "ar": "arb_Arab", "zh-CN": "zho_Hans",
+    "zh": "zho_Hans", "ja": "jpn_Jpan", "ko": "kor_Kore", "hi": "hin_Deva",
+    "ru": "rus_Cyrl", "nl": "nld_Latn", "tr": "tur_Latn", "vi": "vie_Latn",
+    "ur": "urd_Arab", "af": "afr_Latn", "lg": "lug_Latn", "ki": "kik_Latn",
+    "luo": "luo_Latn", "kam": "kam_Latn", "rw": "kin_Latn", "xh": "xho_Latn",
+}
+
 MM_MAP = {
     "en": "en-GB", "sw": "sw-KE", "yo": "yo-NG", "ha": "ha-NE",
     "ig": "ig-NG", "zu": "zu-ZA", "am": "am-ET", "so": "so-SO",
@@ -95,8 +108,31 @@ def get_voice(lang_code=None):
     return SINGLE_VOICE
 
 
+# ===== LANGUAGE AUTO-DETECT =====
+
+def _detect_language(text):
+    """Auto-detect source language via Google. Returns NLLB code."""
+    url = "https://translate.googleapis.com/translate_a/single"
+    params = {"client": "gtx", "sl": "auto", "tl": "en", "dt": "t", "q": text}
+    try:
+        resp = requests.get(url, params=params, timeout=10)
+        if resp.status_code != 200:
+            return "eng_Latn"
+        data = resp.json()
+        detected_iso = data[2] if len(data) > 2 else None
+        if not detected_iso:
+            return "eng_Latn"
+        nllb = ISO_TO_NLLB.get(detected_iso, "eng_Latn")
+        print(f"[DETECT] Google says '{detected_iso}' -> NLLB '{nllb}'", flush=True)
+        return nllb
+    except Exception as e:
+        print(f"[DETECT] error: {e}", flush=True)
+        return "eng_Latn"
+
+
+# ===== TRANSLATION HELPERS =====
+
 def _mymemory(text, src_mm, tgt_mm):
-    import requests
     url = "https://api.mymemory.translated.net/get"
     params = {"q": text, "langpair": f"{src_mm}|{tgt_mm}", "de": "lingolink@example.com"}
     try:
@@ -124,7 +160,6 @@ def _mymemory(text, src_mm, tgt_mm):
 
 
 def _google_unofficial(text, src_2, tgt_2):
-    import requests
     url = "https://translate.googleapis.com/translate_a/single"
     params = {"client": "gtx", "sl": src_2, "tl": tgt_2, "dt": "t", "q": text}
     try:
@@ -148,56 +183,76 @@ def _google_unofficial(text, src_2, tgt_2):
 def _try_direct(text, src_2, tgt_2):
     src_mm = MM_MAP.get(src_2, src_2)
     tgt_mm = MM_MAP.get(tgt_2, tgt_2)
+
     r = _mymemory(text, src_mm, tgt_mm)
     if r:
         return r, "mymemory-direct"
+
     r = _google_unofficial(text, src_2, tgt_2)
     if r:
         return r, "google-direct"
+
     return None, None
 
 
 def _try_pivot(text, src_2, tgt_2):
     if src_2 == "en" or tgt_2 == "en":
         return None, None
+
     src_mm = MM_MAP.get(src_2, src_2)
     en_mm = MM_MAP.get("en", "en-GB")
+
     mid = _mymemory(text, src_mm, en_mm)
     method_step1 = "mymemory-pivot-1"
     if not mid:
         mid = _google_unofficial(text, src_2, "en")
         method_step1 = "google-pivot-1"
+
     if not mid:
         return None, None
+
     tgt_mm = MM_MAP.get(tgt_2, tgt_2)
     final = _mymemory(mid, en_mm, tgt_mm)
     method_step2 = "mymemory-pivot-2"
     if not final:
         final = _google_unofficial(mid, "en", tgt_2)
         method_step2 = "google-pivot-2"
+
     if not final:
         return None, None
+
     return final, f"{method_step1}+{method_step2}"
 
 
 def _do_translate(text, source_lang, target_lang):
+    # Auto-detect source language if requested
+    if source_lang in ("auto", "", None):
+        source_lang = _detect_language(text)
+
     if source_lang == target_lang:
         return text
+
     src_2 = NLLB_TO_GOOGLE.get(source_lang, "en")
     tgt_2 = NLLB_TO_GOOGLE.get(target_lang, "en")
+
     print(f"[TRANSLATE] {src_2} -> {tgt_2}: {text[:60]}", flush=True)
+
     result, method = _try_direct(text, src_2, tgt_2)
     if result:
         print(f"[TRANSLATE] {method}: {result[:80]}", flush=True)
         return result
+
     print(f"[TRANSLATE] direct failed, trying pivot...", flush=True)
     result, method = _try_pivot(text, src_2, tgt_2)
     if result:
         print(f"[TRANSLATE] {method}: {result[:80]}", flush=True)
         return result
+
     print(f"[TRANSLATE] ALL methods failed, returning original", flush=True)
     return text
 
+
+# ===== WHISPER =====
 
 def load_whisper():
     global whisper_model
@@ -227,6 +282,7 @@ async def preload_on_startup():
     else:
         print("Startup: kicking off background model preload", flush=True)
         threading.Thread(target=_preload_models, daemon=True).start()
+
     try:
         db = SessionLocal()
         seed_rbac(db)
@@ -253,6 +309,8 @@ def verify_admin_basic(authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=401, detail="Invalid admin credentials")
     return True
 
+
+# ===== WEBSOCKET =====
 
 WHISPER_TO_NLLB = {
     "en": "eng_Latn", "sw": "swh_Latn", "fr": "fra_Latn", "de": "deu_Latn",
@@ -296,8 +354,10 @@ async def agent_websocket(ws: WebSocket):
         while True:
             data = await ws.receive_json()
             msg_type = data.get("type")
+
             if msg_type == "agent_hello":
                 await safe_send(ws, {"type": "welcome", "message": "Connected"})
+
             elif msg_type == "call_start":
                 session["call_active"] = True
                 session["call_id"] = data.get("call_id")
@@ -310,9 +370,11 @@ async def agent_websocket(ws: WebSocket):
                     await safe_send(ws, {"type": "system", "text": "Ready."})
                 except Exception as e:
                     await safe_send(ws, {"type": "error", "message": str(e)})
+
             elif msg_type == "call_end":
                 session["call_active"] = False
                 await safe_send(ws, {"type": "call_ended", "call_id": session["call_id"]})
+
             elif msg_type == "audio_chunk":
                 if not session["call_active"]:
                     continue
@@ -326,10 +388,12 @@ async def agent_websocket(ws: WebSocket):
                     audio_bytes = base64.b64decode(audio_b64)
                 except Exception:
                     continue
+
                 pcm_bytes = audio_bytes[44:] if audio_bytes[:4] == b'RIFF' else audio_bytes
                 pcm_float = pcm_to_float32(pcm_bytes)
                 if is_silent(pcm_float):
                     continue
+
                 tmp_path = None
                 try:
                     tmp_fd, tmp_path = tempfile.mkstemp(suffix=".wav")
@@ -339,15 +403,19 @@ async def agent_websocket(ws: WebSocket):
                         wf.setsampwidth(2)
                         wf.setframerate(16000)
                         wf.writeframes((pcm_float * 32767).astype(np.int16).tobytes())
+
                     load_whisper()
                     result = whisper_model.transcribe(tmp_path, fp16=False, language=None, task="transcribe",
                         condition_on_previous_text=False, no_speech_threshold=0.6)
                     text = result.get("text", "").strip()
                     detected = result.get("language", "en")
+
                     if not text or len(text) < 3:
                         continue
+
                     await safe_send(ws, {"type": "transcript", "speaker": speaker, "text": text,
                         "detected_lang": detected, "chunk": chunk_id})
+
                     source_nllb = WHISPER_TO_NLLB.get(detected)
                     target = session["target_lang"]
                     if source_nllb and source_nllb != target:
@@ -363,9 +431,12 @@ async def agent_websocket(ws: WebSocket):
                             os.unlink(tmp_path)
                         except Exception:
                             pass
+
     except WebSocketDisconnect:
         print("Agent disconnected", flush=True)
 
+
+# ===== MODELS =====
 
 class TranslationRequest(BaseModel):
     text: str
@@ -377,6 +448,8 @@ class AdminLoginRequest(BaseModel):
     username: str
     password: str
 
+
+# ===== DUBBING =====
 
 @app.post("/dubbing/start")
 async def dubbing_start(
@@ -424,6 +497,8 @@ async def dubbing_start(
     return {"job_id": job_id, "source_lang": "auto", "target_lang": target_lang,
             "status": "processing", "output_url": f"/data/dubbed/{job_id}_dubbed.mp4"}
 
+
+# ===== AUTH =====
 
 class SignupRequest(BaseModel):
     name: str
@@ -522,6 +597,8 @@ async def update_profile(
     return {"success": True, "user": {"id": current_user.id, "name": current_user.name,
             "email": current_user.email, "role": current_user.role}}
 
+
+# ===== RBAC =====
 
 @app.get("/rbac/me/permissions/")
 async def my_permissions(
@@ -739,6 +816,8 @@ async def admin_records(
     return await admin_translations(current_user=current_user, db=db, limit=limit)
 
 
+# ===== TEXT TRANSLATE =====
+
 @app.post("/translate_text/")
 async def translate_text(
     request: TranslationRequest,
@@ -755,6 +834,7 @@ async def translate_text(
         tts_url = f"/data/audio/{tts_filename}"
     except Exception as e:
         print(f"TTS error: {e}", flush=True)
+
     rec = TranslationRecord(source_lang=request.source_lang, target_lang=request.target_lang,
                             source_text=request.text, translated_text=translated)
     db.add(rec); db.commit(); db.refresh(rec)
@@ -762,6 +842,8 @@ async def translate_text(
             "source_lang": request.source_lang, "target_lang": request.target_lang,
             "audio_url": tts_url, "elapsed": round(time.time() - start, 2)}
 
+
+# ===== AUDIO TRANSLATE =====
 
 @app.post("/translate_audio/")
 async def translate_audio(
@@ -776,7 +858,9 @@ async def translate_audio(
         shutil.copyfileobj(file.file, f)
     stt = whisper_model.transcribe(fl, fp16=False)
     src_text = stt["text"].strip()
-    translated = _do_translate(src_text, source_lang, target_lang)
+    detected_iso = stt.get("language", "en")
+    source_nllb = WHISPER_TO_NLLB.get(detected_iso, source_lang)
+    translated = _do_translate(src_text, source_nllb, target_lang)
     tts_filename = f"{file.filename}_translated_{int(time.time())}.mp3"
     tts_url = None
     try:
@@ -785,13 +869,16 @@ async def translate_audio(
         tts_url = f"/data/audio/{tts_filename}"
     except Exception as e:
         print(f"TTS error: {e}", flush=True)
-    rec = TranslationRecord(source_lang=source_lang, target_lang=target_lang,
+
+    rec = TranslationRecord(source_lang=source_nllb, target_lang=target_lang,
                             source_text=src_text, translated_text=translated)
     db.add(rec); db.commit(); db.refresh(rec)
     return {"id": rec.id, "source_text": src_text, "translated_text": translated,
-            "source_lang": source_lang, "target_lang": target_lang,
+            "source_lang": source_nllb, "target_lang": target_lang,
             "audio_url": tts_url, "elapsed": round(time.time() - start, 2)}
 
+
+# ===== HISTORY =====
 
 @app.get("/history/")
 async def get_history(
