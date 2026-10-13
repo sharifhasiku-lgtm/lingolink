@@ -115,7 +115,7 @@ def _detect_language(text):
     url = "https://translate.googleapis.com/translate_a/single"
     params = {"client": "gtx", "sl": "auto", "tl": "en", "dt": "t", "q": text}
     try:
-        resp = requests.get(url, params=params, timeout=10)
+        resp = requests.get(url, params=params, timeout=3)
         if resp.status_code != 200:
             return "eng_Latn"
         data = resp.json()
