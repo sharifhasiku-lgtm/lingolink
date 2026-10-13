@@ -16,3 +16,5 @@ lingolink_mobile/
 
 # Admin panel backups
 node-server/admin.html.bak*
+*.bak
+*.bak_*
