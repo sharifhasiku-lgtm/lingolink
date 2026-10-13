@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
     <title>LingoLink AI - Translator</title>
     <link rel="icon" href="data:,">
     <link rel="manifest" href="manifest.json">
@@ -198,7 +199,7 @@
 <body>
     <div class="auth-container" id="authContainer">
         <div class="auth-header">
-            <h1>🌐 LingoLink AI</h1>
+            <h1> LingoLink AI</h1>
             <p>Translate with 40+ African & International languages</p>
         </div>
         <div class="auth-tabs">
@@ -243,11 +244,11 @@
     <div class="main-app" id="mainApp">
         <div class="header">
             <div></div>
-            <h1>🌐 LingoLink AI</h1>
+            <h1> LingoLink AI</h1>
             <div class="header-actions">
                 <button class="theme-toggle" onclick="toggleTheme()" id="appThemeBtn" title="Toggle theme">🌙</button>
                 <div class="profile-container">
-                    <button class="profile-icon" onclick="toggleDropdown()">👤</button>
+                    <button class="profile-icon" onclick="toggleDropdown()"></button>
                     <div class="dropdown-menu" id="dropdownMenu">
                         <button class="dropdown-item" onclick="showMyStats()">📈 My Stats</button>
                         <button class="dropdown-item" onclick="showEditProfile()">✏️ Edit Profile</button>
@@ -260,11 +261,11 @@
         </div>
         <p class="subtitle">Welcome, <span id="userName">User</span>!</p>
         <div class="tabs">
-            <button class="tab active" onclick="switchTab('translate')">🔄 Text</button>
-            <button class="tab" onclick="switchTab('record')">🎤 Record</button>
-            <button class="tab" onclick="switchTab('upload')">📁 Upload</button>
-            <button class="tab" onclick="switchTab('history')">📜 History</button>
-            <button class="tab" onclick="switchTab('favorites')">⭐ Favorites</button>
+            <button class="tab active" onclick="switchTab('translate')">Text</button>
+            <button class="tab" onclick="switchTab('record')">Record</button>
+            <button class="tab" onclick="switchTab('upload')">Upload</button>
+            <button class="tab" onclick="switchTab('history')">History</button>
+            <button class="tab" onclick="switchTab('favorites')">Favorites</button>
         </div>
         <div class="tab-content active" id="translateTab">
             <div class="language-selector">
@@ -296,8 +297,8 @@
                 <div class="result-item">
                     <div class="result-label">Actions</div>
                     <div class="action-buttons">
-                        <button class="speak-btn" onclick="speakTranslated('translatedText', 'targetLang')">🔊 Play</button>
-                        <button class="favorite-btn" id="favBtnText" onclick="toggleFavoriteFromResult('text')">⭐ Favorite</button>
+                        <button class="speak-btn" onclick="speakTranslated('translatedText', 'targetLang')"> Play</button>
+                        <button class="favorite-btn" id="favBtnText" onclick="toggleFavoriteFromResult('text')"> Favorite</button>
                         <button class="download-btn" onclick="downloadText('translatedText')">📄 .txt</button>
                     </div>
                 </div>
@@ -336,8 +337,8 @@
                 <div class="result-item">
                     <div class="result-label">Actions</div>
                     <div class="action-buttons">
-                        <button class="speak-btn" onclick="speakTranslated('recordTranslatedText', 'targetLangRecord')">🔊 Play</button>
-                        <button class="favorite-btn" onclick="toggleFavoriteFromResult('record')">⭐ Favorite</button>
+                        <button class="speak-btn" onclick="speakTranslated('recordTranslatedText', 'targetLangRecord')"> Play</button>
+                        <button class="favorite-btn" onclick="toggleFavoriteFromResult('record')"> Favorite</button>
                         <button class="download-btn" onclick="downloadText('recordTranslatedText')">📄 .txt</button>
                     </div>
                 </div>
@@ -382,8 +383,8 @@
                 <div class="result-item">
                     <div class="result-label">Actions</div>
                     <div class="action-buttons">
-                        <button class="speak-btn" onclick="speakTranslated('uploadTranslatedText', 'targetLangUpload')">🔊 Play</button>
-                        <button class="favorite-btn" onclick="toggleFavoriteFromResult('upload')">⭐ Favorite</button>
+                        <button class="speak-btn" onclick="speakTranslated('uploadTranslatedText', 'targetLangUpload')"> Play</button>
+                        <button class="favorite-btn" onclick="toggleFavoriteFromResult('upload')"> Favorite</button>
                         <button class="download-btn" onclick="downloadText('uploadTranslatedText')">📄 .txt</button>
                     </div>
                 </div>
@@ -677,7 +678,7 @@
                     <div class="translated">→ ${record.translated_text}</div>
                     <div class="meta">${record.source_lang} → ${record.target_lang} | ${new Date(record.created_at).toLocaleString()}</div>
                     <div class="action-buttons" style="margin-top:10px;">
-                        <button class="favorite-btn" style="font-size:12px; padding:8px 15px;" onclick="favoriteFromHistory(${record.id})">⭐ Favorite</button>
+                        <button class="favorite-btn" style="font-size:12px; padding:8px 15px;" onclick="favoriteFromHistory(${record.id})"> Favorite</button>
                         <button class="download-btn" style="font-size:12px; padding:8px 15px;" onclick="downloadFromHistory(${record.id})">📄 .txt</button>
                     </div>
                 </div>
@@ -707,11 +708,11 @@
             if (existing) {
                 favorites = favorites.filter(f => f.id !== existing.id);
                 localStorage.setItem('lingolink_favorites', JSON.stringify(favorites));
-                alert('⭐ Removed from favorites');
+                alert(' Removed from favorites');
             } else {
                 favorites.unshift({ id: Date.now(), source_text: sourceText, translated_text: translatedText, source_lang: sourceLang, target_lang: targetLang, created_at: new Date().toISOString() });
                 localStorage.setItem('lingolink_favorites', JSON.stringify(favorites));
-                alert('⭐ Added to favorites!');
+                alert(' Added to favorites!');
             }
             updateFavButton(context);
         }
@@ -726,7 +727,7 @@
             }
             if (!btn) return;
             const isFav = favorites.some(f => f.source_text === sourceText && f.translated_text === translatedText && f.source_lang === sourceLang && f.target_lang === targetLang);
-            btn.textContent = isFav ? '⭐ Favorited' : '⭐ Favorite';
+            btn.textContent = isFav ? ' Favorited' : ' Favorite';
             btn.classList.toggle('active', isFav);
         }
         function escapeHtml(text) {
@@ -736,7 +737,7 @@
         }
         function loadFavorites() {
             const list = document.getElementById('favoritesList');
-            if (favorites.length === 0) { list.innerHTML = '<div class="empty-state">⭐ No favorites yet. Tap the star button on any translation to save it here.</div>'; return; }
+            if (favorites.length === 0) { list.innerHTML = '<div class="empty-state"> No favorites yet. Tap the star button on any translation to save it here.</div>'; return; }
             list.innerHTML = favorites.map(fav => `
                 <div class="favorite-item">
                     <button class="delete-btn" onclick="removeFavorite(${fav.id})">Remove</button>
@@ -744,7 +745,7 @@
                     <div class="translated">→ ${fav.translated_text}</div>
                     <div class="meta">${fav.source_lang} → ${fav.target_lang} | ${new Date(fav.created_at).toLocaleString()}</div>
                     <div class="action-buttons" style="margin-top:10px;">
-                        <button class="speak-btn" style="font-size:12px; padding:8px 15px;" onclick="speakText('${escapeHtml(fav.translated_text).replace(/'/g, "\\'")}', '${fav.target_lang}')">🔊 Play</button>
+                        <button class="speak-btn" style="font-size:12px; padding:8px 15px;" onclick="speakText('${escapeHtml(fav.translated_text).replace(/'/g, "\\'")}', '${fav.target_lang}')"> Play</button>
                         <button class="download-btn" style="font-size:12px; padding:8px 15px;" onclick="downloadFromFav(${fav.id})">📄 .txt</button>
                     </div>
                 </div>
@@ -1011,12 +1012,12 @@
         }
         
         function handleAudioUpload(file) {
-            if (file) { uploadedAudioFile = file; document.getElementById('audioFileName').textContent = `📎 ${file.name}`; checkUploadReady(); }
+            if (file) { uploadedAudioFile = file; document.getElementById('audioFileName').textContent = ` ${file.name}`; checkUploadReady(); }
         }
         function handleVideoUpload(file) {
             if (file) {
                 uploadedVideoFile = file;
-                document.getElementById('videoFileName').textContent = `📎 ${file.name}`;
+                document.getElementById('videoFileName').textContent = ` ${file.name}`;
                 const video = document.getElementById('videoPreview');
                 video.src = URL.createObjectURL(file);
                 video.classList.add('show');
@@ -1093,11 +1094,11 @@
             if (existing) {
                 favorites = favorites.filter(f => f.id !== existing.id);
                 localStorage.setItem('lingolink_favorites', JSON.stringify(favorites));
-                alert('⭐ Removed from favorites');
+                alert(' Removed from favorites');
             } else {
                 favorites.unshift({ id: Date.now(), source_text: record.source_text, translated_text: record.translated_text, source_lang: record.source_lang, target_lang: record.target_lang, created_at: new Date().toISOString() });
                 localStorage.setItem('lingolink_favorites', JSON.stringify(favorites));
-                alert('⭐ Added to favorites!');
+                alert(' Added to favorites!');
             }
         }
         
