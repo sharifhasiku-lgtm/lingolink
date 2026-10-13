@@ -936,7 +936,7 @@
             selects.forEach(select => {
                 languages.forEach(lang => select.appendChild(new Option(`${lang.flag} ${lang.name}`, lang.code)));
             });
-            document.getElementById('sourceLang').value = 'auto';
+            document.getElementById('sourceLang').value = 'swh_Latn';
             document.getElementById('targetLang').value = 'eng_Latn';
             document.getElementById('targetLangRecord').value = 'eng_Latn';
             document.getElementById('targetLangUpload').value = 'eng_Latn';
