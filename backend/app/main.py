@@ -225,9 +225,13 @@ def _try_pivot(text, src_2, tgt_2):
 
 
 def _do_translate(text, source_lang, target_lang):
-    # Auto-detect source language if requested
+    # Auto-detect is unsupported on Render (shared IP blocked by Google).
+    # Fail fast with a clear 400 instead of hanging ~19s.
     if source_lang in ("auto", "", None):
-        source_lang = _detect_language(text)
+        raise HTTPException(
+            status_code=400,
+            detail="Auto-detect is not supported. Please choose a source language.",
+        )
 
     if source_lang == target_lang:
         return text
@@ -823,6 +827,11 @@ async def translate_text(
     request: TranslationRequest,
     db: Session = Depends(get_db),
 ):
+    if request.source_lang in ("auto", "", None):
+        raise HTTPException(
+            status_code=400,
+            detail="Auto-detect is not supported. Please choose a source language.",
+        )
     load_models()
     start = time.time()
     translated = _do_translate(request.text, request.source_lang, request.target_lang)
