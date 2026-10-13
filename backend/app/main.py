@@ -1,4 +1,4 @@
-﻿from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Header, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Header, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
@@ -826,14 +826,8 @@ async def translate_text(
     load_models()
     start = time.time()
     translated = _do_translate(request.text, request.source_lang, request.target_lang)
-    tts_filename = f"tts_{int(time.time())}.mp3"
+    # Browser handles TTS via speechSynthesis — no backend MP3 needed
     tts_url = None
-    try:
-        voice = get_voice(request.target_lang)
-        await edge_tts.Communicate(translated, voice).save(f"data/audio/{tts_filename}")
-        tts_url = f"/data/audio/{tts_filename}"
-    except Exception as e:
-        print(f"TTS error: {e}", flush=True)
 
     rec = TranslationRecord(source_lang=request.source_lang, target_lang=request.target_lang,
                             source_text=request.text, translated_text=translated)
@@ -861,14 +855,8 @@ async def translate_audio(
     detected_iso = stt.get("language", "en")
     source_nllb = WHISPER_TO_NLLB.get(detected_iso, source_lang)
     translated = _do_translate(src_text, source_nllb, target_lang)
-    tts_filename = f"{file.filename}_translated_{int(time.time())}.mp3"
+    # Browser handles TTS
     tts_url = None
-    try:
-        voice = get_voice(target_lang)
-        await edge_tts.Communicate(translated, voice).save(f"data/audio/{tts_filename}")
-        tts_url = f"/data/audio/{tts_filename}"
-    except Exception as e:
-        print(f"TTS error: {e}", flush=True)
 
     rec = TranslationRecord(source_lang=source_nllb, target_lang=target_lang,
                             source_text=src_text, translated_text=translated)
