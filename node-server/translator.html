@@ -1404,8 +1404,29 @@
     }
   }
   window.exitGuestMode = function () {
-    try { localStorage.removeItem('guest'); } catch (e) {}
+    // Clear guest + any cached tokens
+    try {
+      localStorage.removeItem('guest');
+      localStorage.removeItem('token');
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('user');
+      sessionStorage.clear();
+    } catch (e) {}
+
+    // Immediately hide translator, show login card (don't wait for reload)
+    var app = document.getElementById('mainApp') || document.querySelector('.main-app');
+    if (app) app.style.display = 'none';
+
+    var auth = document.getElementById('authContainer') || document.querySelector('.auth-container');
+    if (auth) {
+      auth.style.display = 'block';
+      auth.style.visibility = 'visible';
+    }
+
     document.body.classList.remove('guest-mode');
+
+    // Reload to fully reset — this now lands on the login screen
     location.reload();
   };
   document.addEventListener('DOMContentLoaded', function () {
