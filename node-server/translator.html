@@ -255,6 +255,7 @@
                         <button class="dropdown-item" onclick="toggleTheme()">🌓 Toggle Theme</button>
                         <button class="dropdown-item" onclick="showSupport()">📞 Support</button>
                         <button class="dropdown-item" onclick="logout()">🚪 Logout</button>
+                        <button class="dropdown-item" onclick="switchUser()">🚪 Switch User</button>
                     </div>
                 </div>
             </div>
@@ -1022,6 +1023,45 @@
             showLogoutConfirm();
         }
 
+        function switchUser() {
+            try {
+                localStorage.removeItem('token');
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('refresh_token');
+                localStorage.removeItem('user');
+                localStorage.removeItem('guest');
+                localStorage.removeItem('lingolink_user');
+                sessionStorage.clear();
+            } catch (e) {}
+
+            try {
+                var rt = localStorage.getItem('refresh_token');
+                if (rt && typeof API_BASE !== 'undefined') {
+                    fetch(API_BASE + '/auth/logout/', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({refresh_token_str: rt})
+                    }).catch(function(){});
+                }
+            } catch (e) {}
+
+            var dd = document.getElementById('dropdownMenu');
+            if (dd) dd.classList.remove('show');
+            var lm = document.getElementById('logoutModal');
+            if (lm) lm.remove();
+
+            var app = document.getElementById('mainApp');
+            if (app) app.style.display = 'none';
+            var auth = document.getElementById('authContainer');
+            if (auth) {
+                auth.style.display = 'block';
+                auth.style.visibility = 'visible';
+            }
+            document.body.classList.remove('guest-mode');
+
+            window.location.href = window.location.pathname + '?login=1';
+        }
+
         function showLogoutConfirm() {
             const overlay = document.createElement('div');
             overlay.id = 'logoutModal';
@@ -1493,6 +1533,15 @@
     window.location.href = window.location.pathname + '?login=1';
   };
   document.addEventListener('DOMContentLoaded', function () {
+            if (window.location.search.indexOf('login=1') !== -1) {
+                try { localStorage.removeItem('guest'); } catch (e) {}
+                document.body.classList.remove('guest-mode');
+                var a = document.getElementById('mainApp');
+                if (a) a.style.display = 'none';
+                var b = document.getElementById('authContainer');
+                if (b) { b.style.display = 'block'; b.style.visibility = 'visible'; }
+                return;
+            }
     injectButton();
     try {
       if (localStorage.getItem('guest') === '1') {
