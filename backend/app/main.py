@@ -301,6 +301,32 @@ def health():
     return {"status": "ok"}
 
 
+# === SELF-PING KEEPALIVE ===
+# Render's free tier sleeps the service after ~15 min without traffic.
+# This background thread pings our own /health every 4 minutes so the
+# service never idles out. Fixes 30-60s cold starts.
+def _self_ping_loop():
+    import urllib.request
+    import time as _time
+    # Wait for the server to be fully up before first ping
+    _time.sleep(30)
+    url = os.getenv("SELF_PING_URL", "https://lingolink-backend-zur3.onrender.com/health")
+    while True:
+        try:
+            with urllib.request.urlopen(url, timeout=10) as r:
+                print(f"[SELF-PING] {url} -> {r.status}", flush=True)
+        except Exception as e:
+            print(f"[SELF-PING] error: {e}", flush=True)
+        _time.sleep(240)  # 4 minutes
+
+
+@app.on_event("startup")
+async def start_self_ping():
+    threading.Thread(target=_self_ping_loop, daemon=True).start()
+    print("Self-ping keepalive thread started", flush=True)
+# === END SELF-PING KEEPALIVE ===
+
+
 def verify_admin_basic(authorization: Optional[str] = Header(None)):
     if not authorization or not authorization.startswith("Basic "):
         raise HTTPException(status_code=401, detail="Admin authentication required")
