@@ -1404,30 +1404,37 @@
     }
   }
   window.exitGuestMode = function () {
-    // Clear guest + any cached tokens
+    // ---- 1. Clear all auth + guest state ----
     try {
       localStorage.removeItem('guest');
       localStorage.removeItem('token');
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
       localStorage.removeItem('user');
+      localStorage.removeItem('lingolink_user');
       sessionStorage.clear();
     } catch (e) {}
 
-    // Immediately hide translator, show login card (don't wait for reload)
-    var app = document.getElementById('mainApp') || document.querySelector('.main-app');
+    // ---- 2. Hide translator UI immediately (don't wait for reload) ----
+    var app = document.getElementById('mainApp')
+           || document.querySelector('.main-app');
     if (app) app.style.display = 'none';
 
-    var auth = document.getElementById('authContainer') || document.querySelector('.auth-container');
+    // ---- 3. Show the login card ----
+    var auth = document.getElementById('authContainer')
+            || document.querySelector('.auth-container');
     if (auth) {
       auth.style.display = 'block';
       auth.style.visibility = 'visible';
     }
 
+    // ---- 4. Remove guest-mode class from body ----
     document.body.classList.remove('guest-mode');
 
-    // Reload to fully reset — this now lands on the login screen
-    location.reload();
+    // ---- 5. Redirect to login page (full reload guarantees clean state) ----
+    // If your login is a separate page, change this to that URL.
+    // Currently the same file contains the login card, so just reload.
+    window.location.href = window.location.pathname + '?login=1';
   };
   document.addEventListener('DOMContentLoaded', function () {
     injectButton();
