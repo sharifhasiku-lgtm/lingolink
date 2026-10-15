@@ -1040,6 +1040,62 @@
 
             document.body.appendChild(overlay);
 
+            
+
+            // ---- Wire up modal buttons ----
+            var cancelBtn = document.getElementById('logoutCancelBtn');
+            var confirmBtn = document.getElementById('logoutConfirmBtn');
+            if (cancelBtn) {
+                cancelBtn.onclick = function () {
+                    var m = document.getElementById('logoutModal');
+                    if (m) m.remove();
+                };
+            }
+            if (confirmBtn) {
+                confirmBtn.onclick = function () {
+                    // 1. Clear all local auth/guest state
+                    try {
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('access_token');
+                        localStorage.removeItem('refresh_token');
+                        localStorage.removeItem('user');
+                        localStorage.removeItem('guest');
+                        localStorage.removeItem('lingolink_user');
+                        sessionStorage.clear();
+                    } catch (e) {}
+
+                    // 2. Best-effort backend logout (fire and forget)
+                    try {
+                        var rt = localStorage.getItem('refresh_token');
+                        if (rt && typeof API_BASE !== 'undefined') {
+                            fetch(API_BASE + '/auth/logout/', {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({refresh_token_str: rt})
+                            }).catch(function(){});
+                        }
+                    } catch (e) {}
+
+                    // 3. Remove the modal from the DOM
+                    var m = document.getElementById('logoutModal');
+                    if (m) m.remove();
+
+                    // 4. Hide translator, show login
+                    var app = document.getElementById('mainApp');
+                    if (app) app.style.display = 'none';
+                    var auth = document.getElementById('authContainer');
+                    if (auth) {
+                        auth.style.display = 'block';
+                        auth.style.visibility = 'visible';
+                    }
+                    document.body.classList.remove('guest-mode');
+
+                    // 5. Redirect to login
+                    window.location.href = window.location.pathname + '?login=1';
+                };
+            }
+
+
             document.getElementById('logoutCancelBtn').onclick = function() {
                 overlay.remove();
             };
