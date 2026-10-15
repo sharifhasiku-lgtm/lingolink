@@ -1,10 +1,9 @@
 // LingoLink AI Service Worker
-const CACHE_NAME = 'lingolink-v1';
+const CACHE_NAME = 'lingolink-v2';
 const STATIC_ASSETS = [
     '/',
     '/index.html',
     '/translator.html',
-    '/admin.html',
     '/manifest.json'
 ];
 
