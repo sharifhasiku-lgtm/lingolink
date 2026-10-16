@@ -197,20 +197,24 @@
     
         /* Back button on login card */
         .auth-back-btn {
-            position: absolute;
-            top: 16px;
-            left: 16px;
-            padding: 8px 14px;
+            display: block;
+            width: 100%;
+            margin-top: 12px;
+            padding: 12px 16px;
             background: transparent;
-            color: var(--text, #ffffff);
-            border: 1px solid rgba(255,255,255,0.2);
+            color: #b0b0c0;
+            border: 1px solid rgba(255,255,255,0.15);
             border-radius: 8px;
             font-size: 14px;
             font-weight: 500;
             font-family: inherit;
             cursor: pointer;
-            transition: background 0.15s, border-color 0.15s;
-            z-index: 10;
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
+        }
+        .auth-back-btn:hover {
+            background: rgba(255,255,255,0.05);
+            color: #ffffff;
+            border-color: rgba(255,255,255,0.3);
         }
         .auth-back-btn:hover {
             background: rgba(102,126,234,0.15);
@@ -1587,6 +1591,26 @@ if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').catch(function(e){ console.log('SW register failed:', e); });
     });
 }
+</script>
+
+<script>
+// Move the Back button below the "Translate for Free" guest button
+(function () {
+  function moveBackButton() {
+    var backBtn = document.querySelector('.auth-back-btn');
+    var guestBtn = document.getElementById('guestTranslateBtn');
+    if (!backBtn || !guestBtn) return setTimeout(moveBackButton, 150);
+    if (backBtn.dataset.moved === '1') return;
+    // Insert right after the guest button
+    guestBtn.parentNode.insertBefore(backBtn, guestBtn.nextSibling);
+    backBtn.dataset.moved = '1';
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', moveBackButton);
+  } else {
+    moveBackButton();
+  }
+})();
 </script>
 </body>
 </html>
