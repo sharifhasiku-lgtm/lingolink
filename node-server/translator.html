@@ -227,7 +227,6 @@
 </head>
 <body>
     <div class="auth-container" id="authContainer">
-            <button class="auth-back-btn" onclick="window.location.href='/'">← Back</button>
         <div class="auth-header">
             <h1> LingoLink AI</h1>
             <p>Translate with 40+ African & International languages</p>
@@ -1504,6 +1503,19 @@
     btn.textContent = 'Translate for Free — no account needed';
     btn.addEventListener('click', enterGuestMode);
     card.appendChild(btn);
+  
+    // --- Back to landing page button (permanent, right under guest btn) ---
+    if (!document.getElementById('guestBackBtn')) {
+      var backBtn = document.createElement('button');
+      backBtn.id = 'guestBackBtn';
+      backBtn.type = 'button';
+      backBtn.textContent = '← Back';
+      backBtn.style.cssText = 'display:block;width:100%;margin-top:12px;padding:12px 16px;background:transparent;color:#b0b0c0;border:1px solid rgba(255,255,255,0.15);border-radius:8px;font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;transition:background 0.15s,color 0.15s,border-color 0.15s;';
+      backBtn.onmouseover = function () { this.style.background = 'rgba(255,255,255,0.05)'; this.style.color = '#ffffff'; this.style.borderColor = 'rgba(255,255,255,0.3)'; };
+      backBtn.onmouseout = function () { this.style.background = 'transparent'; this.style.color = '#b0b0c0'; this.style.borderColor = 'rgba(255,255,255,0.15)'; };
+      backBtn.addEventListener('click', function () { window.location.href = '/'; });
+      card.appendChild(backBtn);
+    }
   }
   function enterGuestMode() {
     try {
@@ -1591,26 +1603,6 @@ if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').catch(function(e){ console.log('SW register failed:', e); });
     });
 }
-</script>
-
-<script>
-// Move the Back button below the "Translate for Free" guest button
-(function () {
-  function moveBackButton() {
-    var backBtn = document.querySelector('.auth-back-btn');
-    var guestBtn = document.getElementById('guestTranslateBtn');
-    if (!backBtn || !guestBtn) return setTimeout(moveBackButton, 150);
-    if (backBtn.dataset.moved === '1') return;
-    // Insert right after the guest button
-    guestBtn.parentNode.insertBefore(backBtn, guestBtn.nextSibling);
-    backBtn.dataset.moved = '1';
-  }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', moveBackButton);
-  } else {
-    moveBackButton();
-  }
-})();
 </script>
 </body>
 </html>
