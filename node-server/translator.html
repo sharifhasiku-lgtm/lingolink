@@ -194,10 +194,36 @@
             .stats-card { padding: 15px; }
             .stats-card .stats-value { font-size: 22px; }
         }
-    </style>
+    
+        /* Back button on login card */
+        .auth-back-btn {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            padding: 8px 14px;
+            background: transparent;
+            color: var(--text, #ffffff);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s;
+            z-index: 10;
+        }
+        .auth-back-btn:hover {
+            background: rgba(102,126,234,0.15);
+            border-color: rgba(102,126,234,0.5);
+        }
+        .auth-container {
+            position: relative;
+        }
+</style>
 </head>
 <body>
     <div class="auth-container" id="authContainer">
+            <button class="auth-back-btn" onclick="window.location.href='/'">← Back</button>
         <div class="auth-header">
             <h1> LingoLink AI</h1>
             <p>Translate with 40+ African & International languages</p>
