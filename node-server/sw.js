@@ -1,5 +1,5 @@
-// LingoLink AI Service Worker
-const CACHE_NAME = 'lingolink-v2';
+﻿// LingoLink AI Service Worker
+const CACHE_NAME = 'lingolink-v3';
 const STATIC_ASSETS = [
     '/',
     '/index.html',
@@ -47,7 +47,7 @@ self.addEventListener('fetch', (event) => {
         return; // let it go to network normally
     }
     
-    // For static HTML/CSS/JS — cache first
+    // For static HTML/CSS/JS â€” cache first
     if (event.request.method === 'GET' && 
         (url.pathname.endsWith('.html') || 
          url.pathname.endsWith('.json') || 
